@@ -20,10 +20,9 @@ Header file for main.c.
 /***********************************************************************************************************************
 * Constant Definitions
 ***********************************************************************************************************************/
-#define MAX_DRINKS          (u8)3       /* Maximum number of drinks a server can hold */
+#define MAX_DRINKS          (u8)10      /* Maximum number of drinks a server can hold */
 #define MAX_SERVERS         (u8)3       /* Maximum number of servers */
 #define DRINK_SERVE_TIME    (u32)30000  /* Loop iterations before drink is removed */
-
 
 /***********************************************************************************************************************
 * Type Definitions
