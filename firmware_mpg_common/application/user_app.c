@@ -43,6 +43,15 @@ All Global variable names shall start with "G_"
 /* New variables */
 volatile u32 G_u32UserAppFlags;                       /* Global state flags */
 
+static LedNumberType aeCurrentLed[] = { LCD_GREEN, LCD_RED, LCD_BLUE, LCD_GREEN, LCD_RED, LCD_BLUE };
+static bool abLedRateIncrease[]     = { TRUE,      FALSE,   TRUE,     FALSE,     TRUE,    FALSE };
+
+static u8 u8CurrentLedIndex = 0;
+static u8 u8LedCurrentLevel = 0;
+static u8 u8DutyCycleCounter = 0;
+static u16 u16Counter = COLOR_CYCLE_TIME;
+
+static bool bCyclingOn = TRUE;
 
 /*--------------------------------------------------------------------------------------------------------------------*/
 /* Existing variables (defined in other files -- should all contain the "extern" keyword) */
@@ -88,6 +97,9 @@ Promises:
 */
 void UserAppInitialize(void)
 {
+  LedPWM(LCD_RED, LED_PWM_100);
+  LedPWM(LCD_BLUE, LED_PWM_0);
+  LedPWM(LCD_GREEN, LED_PWM_0);
   
   /* If good initialization, set state to Idle */
   if( 1 )
@@ -137,7 +149,34 @@ State Machine Function Definitions
 /* Wait for a message to be queued */
 static void UserAppSM_Idle(void)
 {
+  if (bCyclingOn)
+    u16Counter--;
+  if (u16Counter == 0)
+  {
+    u16Counter = COLOR_CYCLE_TIME;
     
+    if(abLedRateIncrease[u8CurrentLedIndex])
+      u8LedCurrentLevel++;
+    else
+      u8LedCurrentLevel--;
+    u8DutyCycleCounter++;
+    if (u8DutyCycleCounter == 20)
+    {
+      u8DutyCycleCounter = 0;
+      
+      u8CurrentLedIndex++;
+      if (u8CurrentLedIndex == sizeof(aeCurrentLed))
+        u8CurrentLedIndex = 0;
+    }
+    
+    LedPWM((LedNumberType)aeCurrentLed[u8CurrentLedIndex], (LedRateType)u8LedCurrentLevel);
+  }
+  
+  if(WasButtonPressed(BUTTON0))
+  {
+    ButtonAcknowledge(BUTTON0);
+    bCyclingOn = (bool)!bCyclingOn;
+  }
 } /* end UserAppSM_Idle() */
      
 
