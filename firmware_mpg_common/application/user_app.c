@@ -59,7 +59,9 @@ Variable names shall start with "UserApp_" and be declared as static.
 ***********************************************************************************************************************/
 static fnCode_type UserApp_StateMachine;            /* The state machine function pointer */
 static u32 UserApp_u32Timeout;                      /* Timeout counter used across states */
-
+static u8 bYellowBlink = FALSE;
+static const LedRateType BlinkRate[] = { LED_1HZ, LED_2HZ, LED_4HZ, LED_8HZ };
+static u8 yellowBlinkIndex = 1;
 
 /**********************************************************************************************************************
 Function Definitions
@@ -88,6 +90,15 @@ Promises:
 */
 void UserAppInitialize(void)
 {
+  
+  LedOff(WHITE);
+  LedOff(PURPLE);
+  LedOff(BLUE);
+  LedOff(CYAN);
+  LedOff(GREEN);
+  LedOff(YELLOW);
+  LedOff(ORANGE);
+  LedOff(RED);
   
   /* If good initialization, set state to Idle */
   if( 1 )
@@ -137,6 +148,47 @@ State Machine Function Definitions
 /* Wait for a message to be queued */
 static void UserAppSM_Idle(void)
 {
+    if (IsButtonPressed(BUTTON0))
+      LedOn(WHITE);
+    else
+      LedOff(WHITE);
+    if (IsButtonPressed(BUTTON1))
+      LedOn(PURPLE);
+    else
+      LedOff(PURPLE);
+    if (IsButtonPressed(BUTTON2))
+      LedOn(BLUE);
+    else
+      LedOff(BLUE);
+    if (WasButtonPressed(BUTTON1))
+    {
+      ButtonAcknowledge(BUTTON1);
+      if (bYellowBlink)
+      {
+        bYellowBlink = FALSE;
+        LedOff(YELLOW);
+      }
+      else
+      {
+        bYellowBlink = TRUE;
+        LedBlink(YELLOW, BlinkRate[yellowBlinkIndex]);
+      }
+    }
+    if (IsButtonHeld(BUTTON2, 2000))
+      LedOn(CYAN);
+    else
+      LedOff(CYAN);
+    if (WasButtonPressed(BUTTON2))
+    {
+      ButtonAcknowledge(BUTTON2);
+      if (bYellowBlink)
+      {
+        yellowBlinkIndex++;
+        if (yellowBlinkIndex == 4)
+          yellowBlinkIndex = 0;
+        LedBlink(YELLOW, BlinkRate[yellowBlinkIndex]);
+      }
+    }
     
 } /* end UserAppSM_Idle() */
      
