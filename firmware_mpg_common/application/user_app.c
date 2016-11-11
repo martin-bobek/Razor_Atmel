@@ -188,15 +188,101 @@ static void UserAppSM_Idle(void)
       {
         PWMAudioSetFrequency(BUZZER1, au16NotesRight[u8CurrentIndex]);
         PWMAudioOn(BUZZER1);
+        
+        switch (au16NotesRight[u8CurrentIndex])
+        {
+        case D5:
+          LedOn(WHITE);
+          break;
+        case E5:
+          LedOn(PURPLE);
+          break;
+        case F5:
+          LedOn(BLUE);
+          break;
+        case G5:
+          LedOn(CYAN);
+          break;
+        case A5:
+          LedOn(GREEN);
+          break;
+        case A5S:
+          LedOn(YELLOW);
+          break;
+        case C6:
+          LedOn(ORANGE);
+          break;
+        case D6:
+          LedOn(RED);
+          break;
+        }
       }
       else
+      {
         PWMAudioOff(BUZZER1);
+        
+        switch (au16NotesRight[u8CurrentIndex])
+        {
+        case D5:
+          LedOff(WHITE);
+          break;
+        case E5:
+          LedOff(PURPLE);
+          break;
+        case F5:
+          LedOff(BLUE);
+          break;
+        case G5:
+          LedOff(CYAN);
+          break;
+        case A5:
+          LedOff(GREEN);
+          break;
+        case A5S:
+          LedOff(YELLOW);
+          break;
+        case C6:
+          LedOff(ORANGE);
+          break;
+        case D6:
+          LedOff(RED);
+          break;
+        }
+      }
     }
     else
     {
       PWMAudioOff(BUZZER1);
       u16CurrentDurationRight = u16NoteSilentDurationRight;
       bNoteActiveNextRight = TRUE;
+      
+      switch (au16NotesRight[u8CurrentIndex])
+      {
+      case D5:
+        LedOff(WHITE);
+        break;
+      case E5:
+        LedOff(PURPLE);
+        break;
+      case F5:
+        LedOff(BLUE);
+        break;
+      case G5:
+        LedOff(CYAN);
+        break;
+      case A5:
+        LedOff(GREEN);
+        break;
+      case A5S:
+        LedOff(YELLOW);
+        break;
+      case C6:
+        LedOff(ORANGE);
+        break;
+      case D6:
+        LedOff(RED);
+        break;
+      }
       
       u8IndexRight++;
       if (u8IndexRight == sizeof(au16NotesRight)/sizeof(u16))
