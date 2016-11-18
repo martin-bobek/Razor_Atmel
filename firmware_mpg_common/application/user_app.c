@@ -136,6 +136,10 @@ State Machine Function Definitions
 /* Wait for a message to be queued */
 static void UserAppSM_Idle(void)
 {
+  static bool bPaused = FALSE;
+  static bool bRightOn;
+  static bool bLeftOn;
+  
   static u16 au16NotesRight[] = { F5, F5, F5, F5, F5, E5, D5, E5, F5, G5, A5, A5, A5, A5, A5, G5, F5, G5, A5, A5S, C6, F5, F5, D6, C6, A5S, A5, G5, F5, NO, NO };
   static u16 au16DurationRight[] = { QN, QN, HN, EN, EN, EN, EN, EN, EN, QN, QN, QN, HN, EN, EN, EN, EN, EN, EN, QN,  HN, HN, EN, EN, EN, EN,  QN, QN, HN, HN, FN };
   static u16 au16NoteTypeRight[] = { RT, RT, HT, RT, RT, RT, RT, RT, RT, RT, RT, RT, HT, RT, RT, RT, RT, RT, RT, RT,  RT, HT, RT, RT, RT, RT,  RT, RT, RT, HT, HT };
@@ -156,70 +160,138 @@ static void UserAppSM_Idle(void)
   
   u8 u8CurrentIndex;
   
-  if (IsTimeUp(&u32RightTimer, (u32)u16CurrentDurationRight))
+  if (WasButtonPressed(BUTTON0))
   {
-    u32RightTimer = G_u32SystemTime1ms;
-    u8CurrentIndex = u8IndexRight;
-    if (bNoteActiveNextRight)
+    ButtonAcknowledge(BUTTON0);
+    if (bPaused == TRUE)
     {
-      if (au16NoteTypeRight[u8CurrentIndex] == RT)
+      bPaused = FALSE;
+      u32LeftTimer = u32RightTimer = G_u32SystemTime1ms;
+      if (bRightOn)
       {
-        u16CurrentDurationRight = au16DurationRight[u8CurrentIndex] - REGULAR_NOTE_ADJUSTMENT;
-        u16NoteSilentDurationRight = REGULAR_NOTE_ADJUSTMENT;
-        bNoteActiveNextRight = FALSE;
-      }
-      else if (au16NoteTypeRight[u8CurrentIndex] == ST)
-      {
-        u16CurrentDurationRight = STACCATO_NOTE_TIME;
-        u16NoteSilentDurationRight = au16DurationRight[u8CurrentIndex] - STACCATO_NOTE_TIME;
-        bNoteActiveNextRight = FALSE;
-      }
-      else if (au16NoteTypeRight[u8CurrentIndex] == HT)
-      {
-        u16CurrentDurationRight = au16DurationRight[u8CurrentIndex];
-        u16NoteSilentDurationRight = 0;
-        bNoteActiveNextRight = TRUE;
-        
-        u8IndexRight++;
-        if (u8IndexRight == sizeof(au16NotesRight)/sizeof(u16))
-            u8IndexRight = 0;
-      }
-      if (au16NotesRight[u8CurrentIndex] != NO)
-      {
-        PWMAudioSetFrequency(BUZZER1, au16NotesRight[u8CurrentIndex]);
         PWMAudioOn(BUZZER1);
-        
-        switch (au16NotesRight[u8CurrentIndex])
+      }
+      if (bLeftOn)
+      {
+        PWMAudioOn(BUZZER2);
+      }
+    }
+    else
+    {
+      bPaused = TRUE;
+      
+      u16CurrentDurationRight = G_u32SystemTime1ms - u32RightTimer;
+      u16CurrentDurationLeft = G_u32SystemTime1ms - u32LeftTimer;
+      
+      PWMAudioOff(BUZZER1);
+      PWMAudioOff(BUZZER2);
+    }
+  }
+    
+  if (bPaused == FALSE)
+  {
+    if (IsTimeUp(&u32RightTimer, (u32)u16CurrentDurationRight))
+    {
+      u32RightTimer = G_u32SystemTime1ms;
+      u8CurrentIndex = u8IndexRight;
+      if (bNoteActiveNextRight)
+      {
+        if (au16NoteTypeRight[u8CurrentIndex] == RT)
         {
-        case D5:
-          LedOn(WHITE);
-          break;
-        case E5:
-          LedOn(PURPLE);
-          break;
-        case F5:
-          LedOn(BLUE);
-          break;
-        case G5:
-          LedOn(CYAN);
-          break;
-        case A5:
-          LedOn(GREEN);
-          break;
-        case A5S:
-          LedOn(YELLOW);
-          break;
-        case C6:
-          LedOn(ORANGE);
-          break;
-        case D6:
-          LedOn(RED);
-          break;
+          u16CurrentDurationRight = au16DurationRight[u8CurrentIndex] - REGULAR_NOTE_ADJUSTMENT;
+          u16NoteSilentDurationRight = REGULAR_NOTE_ADJUSTMENT;
+          bNoteActiveNextRight = FALSE;
+        }
+        else if (au16NoteTypeRight[u8CurrentIndex] == ST)
+        {
+          u16CurrentDurationRight = STACCATO_NOTE_TIME;
+          u16NoteSilentDurationRight = au16DurationRight[u8CurrentIndex] - STACCATO_NOTE_TIME;
+          bNoteActiveNextRight = FALSE;
+        }
+        else if (au16NoteTypeRight[u8CurrentIndex] == HT)
+        {
+          u16CurrentDurationRight = au16DurationRight[u8CurrentIndex];
+          u16NoteSilentDurationRight = 0;
+          bNoteActiveNextRight = TRUE;
+          
+          u8IndexRight++;
+          if (u8IndexRight == sizeof(au16NotesRight)/sizeof(u16))
+              u8IndexRight = 0;
+        }
+        if (au16NotesRight[u8CurrentIndex] != NO)
+        {
+          PWMAudioSetFrequency(BUZZER1, au16NotesRight[u8CurrentIndex]);
+          PWMAudioOn(BUZZER1);
+          bRightOn = TRUE;
+          
+          switch (au16NotesRight[u8CurrentIndex])
+          {
+          case D5:
+            LedOn(WHITE);
+            break;
+          case E5:
+            LedOn(PURPLE);
+            break;
+          case F5:
+            LedOn(BLUE);
+            break;
+          case G5:
+            LedOn(CYAN);
+            break;
+          case A5:
+            LedOn(GREEN);
+            break;
+          case A5S:
+            LedOn(YELLOW);
+            break;
+          case C6:
+            LedOn(ORANGE);
+            break;
+          case D6:
+            LedOn(RED);
+            break;
+          }
+        }
+        else
+        {
+          PWMAudioOff(BUZZER1);
+          bRightOn = FALSE;
+          
+          switch (au16NotesRight[u8CurrentIndex])
+          {
+          case D5:
+            LedOff(WHITE);
+            break;
+          case E5:
+            LedOff(PURPLE);
+            break;
+          case F5:
+            LedOff(BLUE);
+            break;
+          case G5:
+            LedOff(CYAN);
+            break;
+          case A5:
+            LedOff(GREEN);
+            break;
+          case A5S:
+            LedOff(YELLOW);
+            break;
+          case C6:
+            LedOff(ORANGE);
+            break;
+          case D6:
+            LedOff(RED);
+            break;
+          }
         }
       }
       else
       {
         PWMAudioOff(BUZZER1);
+        u16CurrentDurationRight = u16NoteSilentDurationRight;
+        bNoteActiveNextRight = TRUE;
+        bRightOn = FALSE;
         
         switch (au16NotesRight[u8CurrentIndex])
         {
@@ -248,93 +320,64 @@ static void UserAppSM_Idle(void)
           LedOff(RED);
           break;
         }
+        
+        u8IndexRight++;
+        if (u8IndexRight == sizeof(au16NotesRight)/sizeof(u16))
+          u8IndexRight = 0;
       }
     }
-    else
+    
+    if (IsTimeUp(&u32LeftTimer, (u32)u16CurrentDurationLeft))
     {
-      PWMAudioOff(BUZZER1);
-      u16CurrentDurationRight = u16NoteSilentDurationRight;
-      bNoteActiveNextRight = TRUE;
-      
-      switch (au16NotesRight[u8CurrentIndex])
+      u32LeftTimer = G_u32SystemTime1ms;
+      u8CurrentIndex = u8IndexLeft;
+      if (bNoteActiveNextLeft)
       {
-      case D5:
-        LedOff(WHITE);
-        break;
-      case E5:
-        LedOff(PURPLE);
-        break;
-      case F5:
-        LedOff(BLUE);
-        break;
-      case G5:
-        LedOff(CYAN);
-        break;
-      case A5:
-        LedOff(GREEN);
-        break;
-      case A5S:
-        LedOff(YELLOW);
-        break;
-      case C6:
-        LedOff(ORANGE);
-        break;
-      case D6:
-        LedOff(RED);
-        break;
+        if (au16NoteTypeLeft[u8CurrentIndex] == RT)
+        {
+          u16CurrentDurationLeft = au16DurationLeft[u8CurrentIndex] - REGULAR_NOTE_ADJUSTMENT;
+          u16NoteSilentDurationLeft = REGULAR_NOTE_ADJUSTMENT;
+          bNoteActiveNextLeft = FALSE;
+        }
+        else if (au16NoteTypeLeft[u8CurrentIndex] == ST)
+        {
+          u16CurrentDurationLeft = STACCATO_NOTE_TIME;
+          u16NoteSilentDurationLeft = au16DurationLeft[u8CurrentIndex] - STACCATO_NOTE_TIME;
+          bNoteActiveNextLeft = FALSE;
+        }
+        else if (au16NoteTypeLeft[u8CurrentIndex] == HT)
+        {
+          u16CurrentDurationLeft = au16DurationLeft[u8CurrentIndex];
+          u16NoteSilentDurationLeft = 0;
+          bNoteActiveNextLeft = TRUE;
+          
+          u8IndexLeft++;
+          if (u8IndexLeft == sizeof(au16NotesLeft)/sizeof(u16))
+              u8IndexLeft = 0;
+        }
+        if (au16NotesLeft[u8CurrentIndex] != NO)
+        {
+          PWMAudioSetFrequency(BUZZER2, au16NotesLeft[u8CurrentIndex]);
+          PWMAudioOn(BUZZER2);
+          bLeftOn = TRUE;
+        }
+        else
+        {
+          PWMAudioOff(BUZZER2);
+          bLeftOn = FALSE;
+        }
       }
-      
-      u8IndexRight++;
-      if (u8IndexRight == sizeof(au16NotesRight)/sizeof(u16))
-        u8IndexRight = 0;
-    }
-  }
-  
-  if (IsTimeUp(&u32LeftTimer, (u32)u16CurrentDurationLeft))
-  {
-    u32LeftTimer = G_u32SystemTime1ms;
-    u8CurrentIndex = u8IndexLeft;
-    if (bNoteActiveNextLeft)
-    {
-      if (au16NoteTypeLeft[u8CurrentIndex] == RT)
+      else
       {
-        u16CurrentDurationLeft = au16DurationLeft[u8CurrentIndex] - REGULAR_NOTE_ADJUSTMENT;
-        u16NoteSilentDurationLeft = REGULAR_NOTE_ADJUSTMENT;
-        bNoteActiveNextLeft = FALSE;
-      }
-      else if (au16NoteTypeLeft[u8CurrentIndex] == ST)
-      {
-        u16CurrentDurationLeft = STACCATO_NOTE_TIME;
-        u16NoteSilentDurationLeft = au16DurationLeft[u8CurrentIndex] - STACCATO_NOTE_TIME;
-        bNoteActiveNextLeft = FALSE;
-      }
-      else if (au16NoteTypeLeft[u8CurrentIndex] == HT)
-      {
-        u16CurrentDurationLeft = au16DurationLeft[u8CurrentIndex];
-        u16NoteSilentDurationLeft = 0;
+        PWMAudioOff(BUZZER2);
+        u16CurrentDurationLeft = u16NoteSilentDurationLeft;
         bNoteActiveNextLeft = TRUE;
+        bLeftOn = FALSE;
         
         u8IndexLeft++;
         if (u8IndexLeft == sizeof(au16NotesLeft)/sizeof(u16))
-            u8IndexLeft = 0;
+          u8IndexLeft = 0;
       }
-      if (au16NotesLeft[u8CurrentIndex] != NO)
-      {
-        PWMAudioSetFrequency(BUZZER2, au16NotesLeft[u8CurrentIndex]);
-        PWMAudioOn(BUZZER2);
-      }
-      else
-        PWMAudioOff(BUZZER2);
-    }
-    else
-    {
-      PWMAudioOff(BUZZER2);
-      u16CurrentDurationLeft = u16NoteSilentDurationLeft;
-      bNoteActiveNextLeft = TRUE;
-      
-      u8IndexLeft++;
-      if (u8IndexLeft == sizeof(au16NotesLeft)/sizeof(u16))
-        u8IndexLeft = 0;
     }
   }
 } /* end UserAppSM_Idle() */
