@@ -59,7 +59,7 @@ Variable names shall start with "UserApp_" and be declared as static.
 ***********************************************************************************************************************/
 static fnCode_type UserApp_StateMachine;            /* The state machine function pointer */
 static u32 UserApp_u32Timeout;                      /* Timeout counter used across states */
-
+static u8 UserApp_au8MyName[] = "Martin Bobek";
 
 /**********************************************************************************************************************
 Function Definitions
@@ -88,8 +88,14 @@ Promises:
 */
 void UserAppInitialize(void)
 {
+  LCDCommand(LCD_CLEAR_CMD);
+  LCDMessage(LINE1_START_ADDR, UserApp_au8MyName);
+  LCDMessage(LINE2_START_ADDR, "0");
+  LCDMessage(LINE2_START_ADDR + 6, "1");
+  LCDMessage(LINE2_START_ADDR + 13, "2");
+  LCDMessage(LINE2_END_ADDR, "3");
+  LCDCommand(LCD_HOME_CMD);
   
-  /* If good initialization, set state to Idle */
   if( 1 )
   {
     UserApp_StateMachine = UserAppSM_Idle;
@@ -137,7 +143,57 @@ State Machine Function Definitions
 /* Wait for a message to be queued */
 static void UserAppSM_Idle(void)
 {
-    
+  static bool bCursorBlink = FALSE;
+  static u8 u8CursorPos = LINE1_START_ADDR;
+  
+  if (WasButtonPressed(BUTTON0))
+  {
+    ButtonAcknowledge(BUTTON0);
+    if (bCursorBlink)
+    {
+      bCursorBlink = FALSE;
+      LCDCommand(LCD_DISPLAY_CMD | LCD_DISPLAY_ON);
+    }
+    else
+    {
+      bCursorBlink = TRUE;
+      LCDCommand(LCD_DISPLAY_CMD | LCD_DISPLAY_ON | LCD_DISPLAY_CURSOR | LCD_DISPLAY_BLINK);
+    }
+  }
+  if (WasButtonPressed(BUTTON2))
+  {
+    ButtonAcknowledge(BUTTON2);
+    if (u8CursorPos == LINE1_START_ADDR)
+    {
+      u8CursorPos = LINE2_END_ADDR;
+    }
+    else if (u8CursorPos == LINE2_START_ADDR)
+    {
+      u8CursorPos = LINE1_END_ADDR;
+    }
+    else
+    {
+      u8CursorPos--;
+    }
+    LCDCommand(LCD_ADDRESS_CMD | u8CursorPos);
+  }
+  if (WasButtonPressed(BUTTON3))
+  {
+    ButtonAcknowledge(BUTTON3);
+    if (u8CursorPos == LINE1_END_ADDR)
+    {
+      u8CursorPos = LINE2_START_ADDR;
+    }
+    else if (u8CursorPos == LINE2_END_ADDR)
+    {
+      u8CursorPos = LINE1_START_ADDR;
+    }
+    else
+    {
+      u8CursorPos++;
+    }
+    LCDCommand(LCD_ADDRESS_CMD | u8CursorPos);
+  }
 } /* end UserAppSM_Idle() */
      
 
