@@ -59,7 +59,7 @@ Variable names shall start with "UserApp_" and be declared as static.
 ***********************************************************************************************************************/
 static fnCode_type UserApp_StateMachine;            /* The state machine function pointer */
 static u32 UserApp_u32Timeout;                      /* Timeout counter used across states */
-
+static u8 au8Cactuses[21];                         /* Characters for the bottom row of LCD */
 
 /**********************************************************************************************************************
 Function Definitions
@@ -88,6 +88,13 @@ Promises:
 */
 void UserAppInitialize(void)
 {
+  for (u8 i = 0; i < 20; i++)
+  {
+    au8Cactuses[i] = ' ';
+  }
+  au8Cactuses[20] = '\0';
+  
+  LCDCommand(LCD_CLEAR_CMD);
   
   /* If good initialization, set state to Idle */
   if( 1 )
@@ -127,7 +134,55 @@ void UserAppRunActiveState(void)
 /*--------------------------------------------------------------------------------------------------------------------*/
 /* Private functions                                                                                                  */
 /*--------------------------------------------------------------------------------------------------------------------*/
+void cactus_update()
+{
+  static u8 u8SequenceLength = 1;  /* change to actual random value*/
+  static bool bCactusSequence = TRUE;
+  
+  for (u8 i = 0; i < 19; i++)
+  {
+    if (au8Cactuses[i + 1] == 29)
+    {
+      au8Cactuses[i] = 29;
+    }
+    else
+    {
+      au8Cactuses[i] = ' ';
+    }
+  }
+  if (u8SequenceLength == 0)
+  {
+    if (bCactusSequence)
+    {
+      bCactusSequence = FALSE;
+      u8SequenceLength = randInt(6) + 2; /* Sequences of length 2 to 7 */
+    }
+    else
+    {
+      bCactusSequence = TRUE;
+      u8SequenceLength = randInt(3) + 1; /* Sequences of length 1 to 3 */
+    }
+  }
+  if (bCactusSequence)
+  {
+    au8Cactuses[19] = 29;
+  }
+  else
+  {
+    au8Cactuses[19] = ' ';
+  }
+  u8SequenceLength--;
+}
 
+u32 randInt(u32 modulo)
+{
+  static u32 LFSR = 0x6A42BE71;
+  for (u8 i = 0; i < 32; i++)
+  {
+    LFSR = (LFSR << 1) | (1u & ((LFSR >> 31) ^ (LFSR >> 29) ^ (LFSR >> 28) ^ (LFSR >> 24))); /* [32, 30, 29, 25, 0] */
+  }
+  return LFSR % modulo;
+}
 
 /**********************************************************************************************************************
 State Machine Function Definitions
@@ -137,7 +192,50 @@ State Machine Function Definitions
 /* Wait for a message to be queued */
 static void UserAppSM_Idle(void)
 {
-    
+  u8 *msgGameOver = "     GAME OVER!     ";
+  u8 strStickMan[] = { 171, '\0' };
+  static u32 u32TickLength = 250;
+  static u32 u32Counter = 251;
+  static u8 u8Jump = 0;
+  static bool bGameOver = FALSE;
+  
+  if (!bGameOver)
+  {
+    u32Counter--;
+  }
+  if (u32Counter == 0)
+  {
+    u32Counter = u32TickLength;
+    cactus_update();
+    if (u8Jump != 0)
+    {
+      u8Jump--;
+    }
+    else if (WasButtonPressed(BUTTON2))
+    {
+      ButtonAcknowledge(BUTTON2);
+      u8Jump = 3;
+    }
+    if (u8Jump == 0)
+    {
+      LCDMessage(LINE1_START_ADDR + 1, " "); /* Clears stick man if in upper row */
+      if (au8Cactuses[1] != ' ')
+      {
+        au8Cactuses[1] = 'X';
+        bGameOver = TRUE;
+        LCDMessage(LINE1_START_ADDR, msgGameOver);
+      }
+      else
+      {
+        au8Cactuses[1] = 171; /* StickMan */
+      }
+    }
+    else
+    {
+      LCDMessage(LINE1_START_ADDR + 1, strStickMan);
+    }
+    LCDMessage(LINE2_START_ADDR, au8Cactuses);
+  }
 } /* end UserAppSM_Idle() */
      
 
