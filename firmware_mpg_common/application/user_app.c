@@ -59,7 +59,14 @@ Variable names shall start with "UserApp_" and be declared as static.
 ***********************************************************************************************************************/
 static fnCode_type UserApp_StateMachine;            /* The state machine function pointer */
 static u32 UserApp_u32Timeout;                      /* Timeout counter used across states */
-static u8 au8Cactuses[21];                         /* Characters for the bottom row of LCD */
+static fnCode_type Game_StateMachine;               /* Game state machine function pointer */
+static u32 u32Score = 0;                            /* Number of gameticks the player has survived */
+static u8 au8Cactuses[21];                          /* Characters for the bottom row of LCD */
+static u32 u32TickLength;                           /* Initial game tick length */
+static u16 LFSR;                                    /* Linear Feedback Shift Register for randInt */
+static bool bLFSRinitialized = FALSE;               /* Indicates LFSR has not been initialized with seed */
+static u16 u16SequenceLength;                       /* Remaining length of sequence of cactuses/spaces */
+static bool bCactusSequence;                        /* True indicates current sequence is cactuses */
 
 /**********************************************************************************************************************
 Function Definitions
@@ -88,13 +95,9 @@ Promises:
 */
 void UserAppInitialize(void)
 {
-  for (u8 i = 0; i < 20; i++)
-  {
-    au8Cactuses[i] = ' ';
-  }
-  au8Cactuses[20] = '\0';
-  
   LCDCommand(LCD_CLEAR_CMD);
+  
+  Game_StateMachine = Game_StartScreen;
   
   /* If good initialization, set state to Idle */
   if( 1 )
@@ -134,33 +137,226 @@ void UserAppRunActiveState(void)
 /*--------------------------------------------------------------------------------------------------------------------*/
 /* Private functions                                                                                                  */
 /*--------------------------------------------------------------------------------------------------------------------*/
-void cactus_update()
+static void Game_StartScreen()
 {
-  static u8 u8SequenceLength = 1;  /* change to actual random value*/
-  static bool bCactusSequence = TRUE;
+  static bool bUninitialized = TRUE;
+  u8 *strLine1 = "          CONTROLS: ";
+  u8 *strLine2 = "START      JUMP  ESC";
   
-  for (u8 i = 0; i < 19; i++)
+  if (bUninitialized)
   {
-    if (au8Cactuses[i + 1] == 29)
-    {
-      au8Cactuses[i] = 29;
-    }
-    else
+    ButtonAcknowledge(BUTTON0);         /* Clears all button presses before entering Running state */
+    ButtonAcknowledge(BUTTON1);
+    ButtonAcknowledge(BUTTON2);
+    ButtonAcknowledge(BUTTON3);
+    
+    LCDMessage(LINE1_START_ADDR, strLine1);
+    LCDMessage(LINE2_START_ADDR, strLine2);
+    
+    for (u8 i = 0; i < 20; i++)         /* Initialize Cactuses */
     {
       au8Cactuses[i] = ' ';
     }
+    au8Cactuses[20] = '\0';
+    u32TickLength = 250;
+    u16SequenceLength = 0;
+    bCactusSequence = FALSE;
+    u32Score = 0;
+    
+    bUninitialized = FALSE;
   }
-  if (u8SequenceLength == 0)
+  
+  if (WasButtonPressed(BUTTON0))
+  {
+    ButtonAcknowledge(BUTTON0);         /* Clears all button presses before entering Running state */
+    ButtonAcknowledge(BUTTON1);
+    ButtonAcknowledge(BUTTON2);
+    ButtonAcknowledge(BUTTON3);
+    
+    if (bLFSRinitialized == FALSE)
+    {
+      LFSR = (u16)G_u32SystemTime1ms;
+      bLFSRinitialized = TRUE;
+    }
+    
+    LCDCommand(LCD_CLEAR_CMD);
+    bUninitialized = TRUE;             /* Resets uninitialized flag: game gets reinitialized next time StartScreen is entered */
+    Game_StateMachine = Game_Running;
+  }
+}
+
+static void Game_Running()
+{
+  u8 strStickMan[] = { 171, '\0' };
+  static u32 u32Counter = 250;
+  static u8 u8Jump = 0;
+  
+  if (WasButtonPressed(BUTTON3))
+  {
+    Game_StateMachine = Game_StartScreen;
+    return;
+  }
+  u32Counter--;
+  if (u32Counter == 0)
+  {
+    u32Counter = u32TickLength;
+    u32Score++;
+    led_score();
+    cactus_update();
+    LCDMessage(LINE2_START_ADDR, au8Cactuses);
+    
+    if (u8Jump != 0)
+    {
+      u8Jump--;
+    }
+    else if (WasButtonPressed(BUTTON2))
+    {
+      u8Jump = 3;
+    }
+    ButtonAcknowledge(BUTTON2);              /* Clears button press even if button was pressed while still in air */
+    
+    if (u8Jump == 0)
+    {
+      LCDMessage(LINE1_START_ADDR + 1, " "); /* Clears stick man if in upper row */
+      if (au8Cactuses[1] == ' ')
+      {
+        LCDMessage(LINE2_START_ADDR + 1, strStickMan);
+      }
+      else
+      {
+        LCDMessage(LINE2_START_ADDR + 1, "X");
+        Game_StateMachine = Game_GameOver;
+      }
+    }
+    else
+    {
+      LCDMessage(LINE1_START_ADDR + 1, strStickMan);
+    }
+  }
+}
+
+static void Game_GameOver()
+{
+  const u8 u8TickLength = 250;
+  static u8 u8Counter = 250;
+  static u8 u8TickNumber = 0;
+  
+  u8Counter--;
+  if (u8Counter == 0) 
+  {
+    u8Counter = u8TickLength;
+    u8TickNumber++;
+    
+    if (u8TickNumber == 0)
+    {
+      LCDMessage(LINE1_START_ADDR, "     GAME OVER!     ");
+      ButtonAcknowledge(BUTTON0);
+      ButtonAcknowledge(BUTTON1);
+      ButtonAcknowledge(BUTTON2);
+      ButtonAcknowledge(BUTTON3);
+    }
+    if (u8TickNumber % 2)
+    {
+      for (LedNumberType i = 0; i < 8; i++)
+        LedOff(i);
+    }
+    else
+    {
+      for (LedNumberType i = 0; i < 8; i++)
+        LedOn(i);
+    }
+    if ((u8TickNumber == 8) || WasButtonPressed(BUTTON0) || WasButtonPressed(BUTTON1) || WasButtonPressed(BUTTON2) || WasButtonPressed(BUTTON3))
+    {
+      for (LedNumberType i = 0; i < 8; i++)
+        LedOff(i);
+      
+      ButtonAcknowledge(BUTTON0);
+      ButtonAcknowledge(BUTTON1);
+      ButtonAcknowledge(BUTTON2);
+      ButtonAcknowledge(BUTTON3);
+      
+      u8TickNumber = 0;
+      Game_StateMachine = Game_ScoreBoard;
+    }
+  }
+}
+
+static void Game_ScoreBoard()
+{
+  static bool bFirstEntry = TRUE;
+  static u8 au8String[18] = "Score: ";
+  static u8 decimalScore[10];
+  
+  if (bFirstEntry)
+  {
+    LCDCommand(LCD_CLEAR_CMD);
+    ButtonAcknowledge(BUTTON0);
+    ButtonAcknowledge(BUTTON1);
+    ButtonAcknowledge(BUTTON2);
+    ButtonAcknowledge(BUTTON3);
+    
+    u32 u32ScoreTemp = u32Score;
+    u8 digit, index;
+    for (digit = 0; u32ScoreTemp != 0; digit++)
+    {
+      decimalScore[digit] = u32ScoreTemp % 10u;
+      u32ScoreTemp /= 10u;
+    }
+    for (index = 7, digit--; digit-- > 0; index++)
+    {
+      au8String[index] = decimalScore[digit] + '0';
+    }
+    au8String[index] = '\0';
+    LCDMessage(LINE1_START_ADDR, au8String);
+    
+    bFirstEntry = FALSE;
+  }
+  
+  if (WasButtonPressed(BUTTON0) || WasButtonPressed(BUTTON1) || WasButtonPressed(BUTTON2) || WasButtonPressed(BUTTON3))
+  {
+    ButtonAcknowledge(BUTTON0);
+    ButtonAcknowledge(BUTTON1);
+    ButtonAcknowledge(BUTTON2);
+    ButtonAcknowledge(BUTTON3);
+    
+    bFirstEntry = TRUE;
+    
+    Game_StateMachine = Game_StartScreen;
+  }
+}
+
+static void led_score()
+{
+  for (LedNumberType i = 0; i < 8; i++)
+  {
+    if (u32Score & (1u << (7 - i)))
+    {
+      LedOn(i);
+    }
+    else
+    { 
+      LedOff(i);
+    }
+  }
+}
+
+static void cactus_update()
+{ 
+  for (u8 i = 0; i < 19; i++)               /* Shift Cactuses 1 left)  */
+  {
+    au8Cactuses[i] = au8Cactuses[i + 1];
+  }
+  if (u16SequenceLength == 0)
   {
     if (bCactusSequence)
     {
       bCactusSequence = FALSE;
-      u8SequenceLength = randInt(6) + 2; /* Sequences of length 2 to 7 */
+      u16SequenceLength = 2 + randInt() % 6; /* Sequences of length 2 to 7 */
     }
     else
     {
       bCactusSequence = TRUE;
-      u8SequenceLength = randInt(3) + 1; /* Sequences of length 1 to 3 */
+      u16SequenceLength = 1 + randInt() % 3; /* Sequences of length 1 to 3 */
     }
   }
   if (bCactusSequence)
@@ -171,17 +367,16 @@ void cactus_update()
   {
     au8Cactuses[19] = ' ';
   }
-  u8SequenceLength--;
+  u16SequenceLength--;
 }
 
-u32 randInt(u32 modulo)
+static u16 randInt()
 {
-  static u32 LFSR = 0x6A42BE71;
-  for (u8 i = 0; i < 32; i++)
+  for (u8 i = 0; i < 16; i++)
   {
-    LFSR = (LFSR << 1) | (1u & ((LFSR >> 31) ^ (LFSR >> 29) ^ (LFSR >> 28) ^ (LFSR >> 24))); /* [32, 30, 29, 25, 0] */
+    LFSR = (LFSR << 1) | (1u & ((LFSR >> 15) ^ (LFSR >> 14) ^ (LFSR >> 12) ^ (LFSR >> 3)));  /* [16, 15, 13, 4, 0] */
   }
-  return LFSR % modulo;
+  return LFSR;
 }
 
 /**********************************************************************************************************************
@@ -192,50 +387,7 @@ State Machine Function Definitions
 /* Wait for a message to be queued */
 static void UserAppSM_Idle(void)
 {
-  u8 *msgGameOver = "     GAME OVER!     ";
-  u8 strStickMan[] = { 171, '\0' };
-  static u32 u32TickLength = 250;
-  static u32 u32Counter = 251;
-  static u8 u8Jump = 0;
-  static bool bGameOver = FALSE;
-  
-  if (!bGameOver)
-  {
-    u32Counter--;
-  }
-  if (u32Counter == 0)
-  {
-    u32Counter = u32TickLength;
-    cactus_update();
-    if (u8Jump != 0)
-    {
-      u8Jump--;
-    }
-    else if (WasButtonPressed(BUTTON2))
-    {
-      ButtonAcknowledge(BUTTON2);
-      u8Jump = 3;
-    }
-    if (u8Jump == 0)
-    {
-      LCDMessage(LINE1_START_ADDR + 1, " "); /* Clears stick man if in upper row */
-      if (au8Cactuses[1] != ' ')
-      {
-        au8Cactuses[1] = 'X';
-        bGameOver = TRUE;
-        LCDMessage(LINE1_START_ADDR, msgGameOver);
-      }
-      else
-      {
-        au8Cactuses[1] = 171; /* StickMan */
-      }
-    }
-    else
-    {
-      LCDMessage(LINE1_START_ADDR + 1, strStickMan);
-    }
-    LCDMessage(LINE2_START_ADDR, au8Cactuses);
-  }
+  Game_StateMachine();
 } /* end UserAppSM_Idle() */
      
 

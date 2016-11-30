@@ -49,8 +49,14 @@ void UserAppRunActiveState(void);
 /*--------------------------------------------------------------------------------------------------------------------*/
 /* Private functions                                                                                                  */
 /*--------------------------------------------------------------------------------------------------------------------*/
-void cactus_update();
-u32 randInt(u32 modulo);
+static void Game_Running();
+static void Game_GameOver();
+static void Game_StartScreen();
+static void Game_ScoreBoard();
+
+static void cactus_update();
+static void led_score();
+static u16 randInt();
 
 /***********************************************************************************************************************
 State Machine Declarations
