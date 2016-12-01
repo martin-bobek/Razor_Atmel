@@ -9,7 +9,7 @@ TriggerName=main
 LimitSize=0
 ByteLimit=50
 [DebugChecksum]
-Checksum=1169025648
+Checksum=1357132870
 [JLinkDriver]
 CStepIntDis=_ 0
 WatchCond=_ 0
@@ -44,10 +44,6 @@ SumEnabled=0
 GraphEnabled=0
 ShowTimeLog=1
 ShowTimeSum=1
-[Disassemble mode]
-mode=0
-[Breakpoints2]
-Count=0
 [Interrupts]
 Enabled=1
 [MemConfig]
@@ -56,11 +52,13 @@ Manual=0
 Ddf=1
 TypeViol=0
 Stop=1
-[Trace1]
-Enabled=0
-ShowSource=1
-[CallStackLog]
-Enabled=0
+[Simulator]
+Freq=10000000
+MultiCoreRunAll=1
+[Disassemble mode]
+mode=0
+[Breakpoints2]
+Count=0
 [Log file]
 LoggingEnabled=_ 0
 LogFile=_ ""
@@ -71,12 +69,11 @@ LogFile=_ ""
 [Aliases]
 Count=0
 SuppressDialog=0
-[Simulator]
-Freq=10000000
-MultiCoreRunAll=1
+[CallStackLog]
+Enabled=0
 [DriverProfiling]
 Enabled=0
-Mode=1
+Mode=0
 Graph=0
 Symbiont=0
 Exclusions=

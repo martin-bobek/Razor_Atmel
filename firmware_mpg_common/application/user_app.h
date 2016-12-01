@@ -23,7 +23,7 @@ Header file for yournewtaskname.c
 /**********************************************************************************************************************
 Type Definitions
 **********************************************************************************************************************/
-
+typedef struct { u8 *line_ptr; bool direction; u8 sequence_length; bool sequence_type; } FroggerLine_Type;
 
 /**********************************************************************************************************************
 Constants / Definitions
@@ -50,13 +50,16 @@ void UserAppRunActiveState(void);
 /* Private functions                                                                                                  */
 /*--------------------------------------------------------------------------------------------------------------------*/
 static void Frogger_Running();
-static void Frogger_GameOver();
 static void Frogger_StartScreen();
 
+static void new_line(FroggerLine_Type *line);
+static void shift_line(FroggerLine_Type *line);
+
 static void Runner_Running();
-static void Runner_GameOver();
 static void Runner_StartScreen();
-static void Runner_ScoreBoard();
+
+static void Game_GameOver();
+static void Game_ScoreBoard();
 
 static void cactus_update();
 static void led_score();
