@@ -490,7 +490,7 @@
         </tool>
         <tool>
           <name>ICCARM</name>
-          <file> 98 100 78</file>
+          <file> 98 100</file>
         </tool>
       </outputs>
       <inputs>

@@ -49,10 +49,14 @@ void UserAppRunActiveState(void);
 /*--------------------------------------------------------------------------------------------------------------------*/
 /* Private functions                                                                                                  */
 /*--------------------------------------------------------------------------------------------------------------------*/
-static void Game_Running();
-static void Game_GameOver();
-static void Game_StartScreen();
-static void Game_ScoreBoard();
+static void Frogger_Running();
+static void Frogger_GameOver();
+static void Frogger_StartScreen();
+
+static void Runner_Running();
+static void Runner_GameOver();
+static void Runner_StartScreen();
+static void Runner_ScoreBoard();
 
 static void cactus_update();
 static void led_score();

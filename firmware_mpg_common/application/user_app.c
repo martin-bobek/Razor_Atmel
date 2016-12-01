@@ -97,7 +97,7 @@ void UserAppInitialize(void)
 {
   LCDCommand(LCD_CLEAR_CMD);
   
-  Game_StateMachine = Game_StartScreen;
+  Game_StateMachine = Runner_StartScreen;
   
   /* If good initialization, set state to Idle */
   if( 1 )
@@ -137,7 +137,37 @@ void UserAppRunActiveState(void)
 /*--------------------------------------------------------------------------------------------------------------------*/
 /* Private functions                                                                                                  */
 /*--------------------------------------------------------------------------------------------------------------------*/
-static void Game_StartScreen()
+static void Frogger_StartScreen()
+{
+  static bool bUninitialized = TRUE;
+  u8 *strLine1 = "START    CONTROLS:  ";
+  u8 *strLine2 = ""; /* Add proper control string for bottom line */
+  
+  if (bUninitialized)
+  {
+    ButtonAcknowledge(BUTTON0);
+    ButtonAcknowledge(BUTTON1);
+    ButtonAcknowledge(BUTTON2);
+    ButtonAcknowledge(BUTTON3);
+    
+    LCDMessage(LINE1_START_ADDR, strLine1);
+    LCDMessage(LINE2_START_ADDR, strLine2);
+    
+    
+  }
+}
+
+static void Frogger_Running()
+{
+  
+}
+
+static void Frogger_GameOver()
+{
+  
+}
+  
+static void Runner_StartScreen()
 {
   static bool bUninitialized = TRUE;
   u8 *strLine1 = "          CONTROLS: ";
@@ -181,11 +211,11 @@ static void Game_StartScreen()
     
     LCDCommand(LCD_CLEAR_CMD);
     bUninitialized = TRUE;             /* Resets uninitialized flag: game gets reinitialized next time StartScreen is entered */
-    Game_StateMachine = Game_Running;
+    Game_StateMachine = Runner_Running;
   }
 }
 
-static void Game_Running()
+static void Runner_Running()
 {
   u8 strStickMan[] = { 171, '\0' };
   static u32 u32Counter = 250;
@@ -193,7 +223,7 @@ static void Game_Running()
   
   if (WasButtonPressed(BUTTON3))
   {
-    Game_StateMachine = Game_StartScreen;
+    Game_StateMachine = Runner_StartScreen;
     return;
   }
   u32Counter--;
@@ -225,7 +255,7 @@ static void Game_Running()
       else
       {
         LCDMessage(LINE2_START_ADDR + 1, "X");
-        Game_StateMachine = Game_GameOver;
+        Game_StateMachine = Runner_GameOver;
       }
     }
     else
@@ -235,7 +265,7 @@ static void Game_Running()
   }
 }
 
-static void Game_GameOver()
+static void Runner_GameOver()
 {
   const u8 u8TickLength = 250;
   static u8 u8Counter = 250;
@@ -276,12 +306,12 @@ static void Game_GameOver()
       ButtonAcknowledge(BUTTON3);
       
       u8TickNumber = 0;
-      Game_StateMachine = Game_ScoreBoard;
+      Game_StateMachine = Runner_ScoreBoard;
     }
   }
 }
 
-static void Game_ScoreBoard()
+static void Runner_ScoreBoard()
 {
   static bool bFirstEntry = TRUE;
   static u8 au8String[18] = "Score: ";
@@ -321,7 +351,7 @@ static void Game_ScoreBoard()
     
     bFirstEntry = TRUE;
     
-    Game_StateMachine = Game_StartScreen;
+    Game_StateMachine = Runner_StartScreen;
   }
 }
 
