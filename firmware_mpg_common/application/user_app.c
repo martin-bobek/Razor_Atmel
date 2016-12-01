@@ -61,6 +61,7 @@ static fnCode_type UserApp_StateMachine;            /* The state machine functio
 static u32 UserApp_u32Timeout;                      /* Timeout counter used across states */
 static fnCode_type Game_StateMachine;               /* Game state machine function pointer */
 static u32 u32Score = 0;                            /* Number of gameticks the player has survived */
+static u32 u32HighScore = 0;
 static u8 au8Cactuses[21];                          /* Characters for the bottom row of LCD */
 static u32 u32TickLength;                           /* Initial game tick length */
 static u16 LFSR;                                    /* Linear Feedback Shift Register for randInt */
@@ -245,7 +246,6 @@ static void Game_GameOver()
   if (u8Counter == 0) 
   {
     u8Counter = u8TickLength;
-    u8TickNumber++;
     
     if (u8TickNumber == 0)
     {
@@ -258,12 +258,12 @@ static void Game_GameOver()
     if (u8TickNumber % 2)
     {
       for (LedNumberType i = 0; i < 8; i++)
-        LedOff(i);
+        LedOn(i);
     }
     else
     {
       for (LedNumberType i = 0; i < 8; i++)
-        LedOn(i);
+        LedOff(i);
     }
     if ((u8TickNumber == 8) || WasButtonPressed(BUTTON0) || WasButtonPressed(BUTTON1) || WasButtonPressed(BUTTON2) || WasButtonPressed(BUTTON3))
     {
@@ -278,13 +278,16 @@ static void Game_GameOver()
       u8TickNumber = 0;
       Game_StateMachine = Game_ScoreBoard;
     }
+    
+    u8TickNumber++;
   }
 }
 
 static void Game_ScoreBoard()
 {
   static bool bFirstEntry = TRUE;
-  static u8 au8String[18] = "Score: ";
+  u8 au8Str1[18] = "Score: ";
+  u8 au8Str2[23] = "High Score: ";
   static u8 decimalScore[10];
   
   if (bFirstEntry)
@@ -302,12 +305,27 @@ static void Game_ScoreBoard()
       decimalScore[digit] = u32ScoreTemp % 10u;
       u32ScoreTemp /= 10u;
     }
-    for (index = 7, digit--; digit-- > 0; index++)
+    for (index = 7; digit-- > 0; index++)
     {
-      au8String[index] = decimalScore[digit] + '0';
+      au8Str1[index] = decimalScore[digit] + '0';
     }
-    au8String[index] = '\0';
-    LCDMessage(LINE1_START_ADDR, au8String);
+    au8Str1[index] = '\0';
+    LCDMessage(LINE1_START_ADDR, au8Str1);
+    
+    if (u32Score > u32HighScore)
+      u32HighScore = u32Score;
+    u32ScoreTemp = u32HighScore;
+    for (digit = 0; u32ScoreTemp != 0; digit++)
+    {
+      decimalScore[digit] = u32ScoreTemp % 10u;
+      u32ScoreTemp /= 10u;
+    }
+    for (index = 12; digit-- > 0; index++)
+    {
+      au8Str2[index] = decimalScore[digit] + '0';
+    }
+    au8Str2[index] = '\0';
+    LCDMessage(LINE2_START_ADDR, au8Str2);
     
     bFirstEntry = FALSE;
   }
@@ -370,13 +388,13 @@ static void cactus_update()
   u16SequenceLength--;
 }
 
-static u16 randInt()
+static u8 randInt()
 {
-  for (u8 i = 0; i < 16; i++)
+  for (u8 i = 0; i < 8; i++)
   {
     LFSR = (LFSR << 1) | (1u & ((LFSR >> 15) ^ (LFSR >> 14) ^ (LFSR >> 12) ^ (LFSR >> 3)));  /* [16, 15, 13, 4, 0] */
   }
-  return LFSR;
+  return (u8)LFSR;
 }
 
 /**********************************************************************************************************************
