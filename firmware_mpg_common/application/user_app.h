@@ -63,7 +63,7 @@ static void Game_ScoreBoard();
 
 static void cactus_update();
 static void led_score();
-static u16 randInt();
+static u8 randInt();
 
 /***********************************************************************************************************************
 State Machine Declarations

@@ -149,6 +149,8 @@
       <file>$PROJ_DIR$\Debug\List\sdcard.lst</file>
       <file>$PROJ_DIR$\Debug\List\core_cm3.i</file>
       <file>$PROJ_DIR$\Debug\List\ant.lst</file>
+      <file>$PROJ_DIR$\settings\mpgl1-efmw-01.wsdt</file>
+      <file>$PROJ_DIR$\settings\mpgl1-efmw-01.dni</file>
     </outputs>
     <file>
       <name>[ROOT_NODE]</name>
@@ -490,7 +492,7 @@
         </tool>
         <tool>
           <name>ICCARM</name>
-          <file> 98 100</file>
+          <file> 98 100 78</file>
         </tool>
       </outputs>
       <inputs>
