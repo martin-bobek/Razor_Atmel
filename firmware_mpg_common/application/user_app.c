@@ -85,8 +85,10 @@ static bool bPositionChanged;
 
 /* 
 Known Bugs:
-Runner: Returning from ConfirmExit to Running leaves  message on top line.
+Runner: Returning from ConfirmExit to Running leaves message on top line.
 Runner: Exiting game leaves led's on.
+
+Game: A highscore of more than 8 digits is not representable in ScoreBoard state
 
 */
 
@@ -168,6 +170,11 @@ static void Game_MainMenu()
   
   if (bFirstEntry)
   {
+    ButtonAcknowledge(BUTTON0);
+    ButtonAcknowledge(BUTTON1);
+    ButtonAcknowledge(BUTTON2);
+    ButtonAcknowledge(BUTTON3);
+    
     if (CurrentGame == RUNNER)
     {
       LCDMessage(LINE1_START_ADDR, au8Runner);
@@ -180,33 +187,8 @@ static void Game_MainMenu()
     bFirstEntry = FALSE;
   }
   
-  if (WasButtonPressed(BUTTON0))
+  if (WasButtonPressed(BUTTON3))        /* Go to StartScreen state of the selected games */
   {
-    ButtonAcknowledge(BUTTON0);
-    Game_StateMachine = Game_HighScore;
-    bFirstEntry = TRUE;
-  }
-  if (WasButtonPressed(BUTTON1))
-  {
-    ButtonAcknowledge(BUTTON1);
-    if (CurrentGame == FROGGER)
-    {
-      CurrentGame = RUNNER;
-      LCDMessage(LINE1_START_ADDR, au8Runner);
-    }
-  }
-  if (WasButtonPressed(BUTTON2))
-  {
-    ButtonAcknowledge(BUTTON2);
-    if (CurrentGame == RUNNER)
-    {
-      CurrentGame = FROGGER;
-      LCDMessage(LINE1_START_ADDR, au8Frogger);
-    }
-  }
-  if (WasButtonPressed(BUTTON3))
-  {
-    ButtonAcknowledge(BUTTON3);
     if (CurrentGame == RUNNER)
     {
       Game_StateMachine = Runner_StartScreen;
@@ -223,50 +205,53 @@ static void Game_MainMenu()
     }
     bFirstEntry = TRUE;
   }
+  else if (WasButtonPressed(BUTTON0))        /* Go to HighScore state */
+  {
+    Game_StateMachine = Game_HighScore;
+    bFirstEntry = TRUE;
+  }
+  else if (WasButtonPressed(BUTTON1))        /* Move LEFT in list of games */
+  {
+    ButtonAcknowledge(BUTTON1);
+    ButtonAcknowledge(BUTTON2);
+    if (CurrentGame == FROGGER)
+    {
+      CurrentGame = RUNNER;
+      LCDMessage(LINE1_START_ADDR, au8Runner);
+    }
+  }
+  else if (WasButtonPressed(BUTTON2))        /* Move RIGHT in list of games */
+  {
+    ButtonAcknowledge(BUTTON2);
+    if (CurrentGame == RUNNER)
+    {
+      CurrentGame = FROGGER;
+      LCDMessage(LINE1_START_ADDR, au8Frogger);
+    }
+  }
 }
 static void Game_HighScore()
 {
-  static bool bFirstEntry = TRUE;
   u8 au8Score_str[23] = "High Score: ";
-  u8 decimalScore[10];
+  static bool bFirstEntry = TRUE;
   
   if (bFirstEntry)
-  {
-    LCDCommand(LCD_CLEAR_CMD);
-    u32 u32ScoreTemp = u32HighScore[CurrentGame];
-    u8 digit, index;
-    if (u32ScoreTemp != 0)
-    {
-      for (digit = 0; u32ScoreTemp != 0; digit++)
-      {
-        decimalScore[digit] = u32ScoreTemp % 10u;
-        u32ScoreTemp /= 10u;
-      }
-    }
-    else
-    {
-      digit = 1;
-      decimalScore[0] = 0;
-    }
-    for (index = 12; digit-- > 0; index++)
-    {
-      au8Score_str[index] = decimalScore[digit] + '0';
-    }
-    au8Score_str[index] = '\0';
-    LCDMessage(LINE1_START_ADDR, au8Score_str);
-    
-    bFirstEntry = FALSE;
-  }
-  
-  if (WasButtonPressed(BUTTON0) || WasButtonPressed(BUTTON1) || WasButtonPressed(BUTTON2) || WasButtonPressed(BUTTON3))
   {
     ButtonAcknowledge(BUTTON0);
     ButtonAcknowledge(BUTTON1);
     ButtonAcknowledge(BUTTON2);
     ButtonAcknowledge(BUTTON3);
+    LCDCommand(LCD_CLEAR_CMD);
     
+    to_decimal(&au8Score_str[12], u32HighScore[CurrentGame]);
+    LCDMessage(LINE1_START_ADDR, au8Score_str);
+    
+    bFirstEntry = FALSE;
+  }
+  /* Go to MainMenu state */
+  if (WasButtonPressed(BUTTON0) || WasButtonPressed(BUTTON1) || WasButtonPressed(BUTTON2) || WasButtonPressed(BUTTON3))
+  { 
     Game_StateMachine = Game_MainMenu;
-    
     bFirstEntry = TRUE;
   }
 }
@@ -278,36 +263,34 @@ static void Game_ConfirmExit()
   
   if (bFirstEntry)
   {
+    ButtonAcknowledge(BUTTON0);
+    ButtonAcknowledge(BUTTON1);
+    ButtonAcknowledge(BUTTON3);
+    
     LCDMessage(LINE1_START_ADDR, au8Line1_str);
     LCDMessage(LINE2_START_ADDR, au8Line2_str);
     
     bFirstEntry = FALSE;
   }
   
-  if (WasButtonPressed(BUTTON3))
+  if (WasButtonPressed(BUTTON3))  /* Go back to Running state of CurrentGame */
   {
-    ButtonAcknowledge(BUTTON0);
-    ButtonAcknowledge(BUTTON1);
-    ButtonAcknowledge(BUTTON2);
+    ButtonAcknowledge(BUTTON2); /* Clearing buttons common to both games */
     ButtonAcknowledge(BUTTON3);
-    
     if (CurrentGame == RUNNER)
     {
       Game_StateMachine = Runner_Running;
     }
     else
     {
+      ButtonAcknowledge(BUTTON0);
+      ButtonAcknowledge(BUTTON1);
       Game_StateMachine = Frogger_Running;
     }
-    
     bFirstEntry = TRUE;
   }
-  else if (WasButtonPressed(BUTTON1))
+  else if (WasButtonPressed(BUTTON1)) /* Go to StartScreen state of CurrentGame */
   {
-    ButtonAcknowledge(BUTTON0);
-    ButtonAcknowledge(BUTTON1);
-    ButtonAcknowledge(BUTTON2);
-    
     if (CurrentGame == RUNNER)
     {
       Game_StateMachine = Runner_StartScreen;
@@ -316,34 +299,25 @@ static void Game_ConfirmExit()
     {
       Game_StateMachine = Frogger_StartScreen;
     }
-    
     bFirstEntry = TRUE;
   }
-  else if (WasButtonPressed(BUTTON0))
-  {
-    ButtonAcknowledge(BUTTON0);
-    ButtonAcknowledge(BUTTON1);
-    
+  else if (WasButtonPressed(BUTTON0)) /* Go to MainMenu state */
+  { 
     Game_StateMachine = Game_MainMenu;
-    
     bFirstEntry = TRUE;
   }
 }
 
 static void Frogger_StartScreen()
 {
-  u8 strStickMan[] = { 171, '\0' };
-  static bool bUninitialized = TRUE;
   u8 *strLine1 = "START    CONTROLS:  ";
   u8 *strLine2 = "\x7F     ^      \x7E   ESC";
+  static bool bFirstEntry = TRUE;
   
-  if (bUninitialized)
+  if (bFirstEntry)
   {
     ButtonAcknowledge(BUTTON0);
-    ButtonAcknowledge(BUTTON1);
-    ButtonAcknowledge(BUTTON2);
     ButtonAcknowledge(BUTTON3);
-    
     LCDMessage(LINE1_START_ADDR, strLine1);
     LCDMessage(LINE2_START_ADDR, strLine2);
     
@@ -362,31 +336,26 @@ static void Frogger_StartScreen()
     line_stickman = 0;
     bPositionChanged = FALSE;
     
-    bUninitialized = FALSE;
+    bFirstEntry = FALSE;
   }
   
-  if (WasButtonPressed(BUTTON0))
+  if (WasButtonPressed(BUTTON0)) /* Go to Running state of Frogger */
   {
-    ButtonAcknowledge(BUTTON0);         /* Clears all button presses before entering Running state */
+    ButtonAcknowledge(BUTTON0);
     ButtonAcknowledge(BUTTON1);
     ButtonAcknowledge(BUTTON2);
     ButtonAcknowledge(BUTTON3);
-    
     LCDMessage(LINE2_START_ADDR, lines[0]->line_ptr);
-    LCDMessage(LINE2_START_ADDR + 10, strStickMan);
+    LCDMessage(LINE2_START_ADDR + 10, "\xAB");
     LCDMessage(LINE1_START_ADDR, lines[1]->line_ptr);
     
     Game_StateMachine = Frogger_Running;
-    bUninitialized = TRUE;             /* Resets uninitialized flag: game gets reinitialized next time StartScreen is entered */
+    bFirstEntry = TRUE;
   }
-  if (WasButtonPressed(BUTTON3))
+  else if (WasButtonPressed(BUTTON3)) /* Go to MainMenu state */
   {
-    ButtonAcknowledge(BUTTON1);
-    ButtonAcknowledge(BUTTON2);
-    ButtonAcknowledge(BUTTON3);
-    
     Game_StateMachine = Game_MainMenu;
-    bUninitialized = TRUE;
+    bFirstEntry = TRUE;
   }
 }
 static void Frogger_Running()
@@ -481,7 +450,7 @@ static void Frogger_Running()
     bPositionChanged = FALSE;
   }
 }
- 
+
 static void new_line(FroggerLine_Type *line)
 {
   line->sequence_length = 0;
@@ -565,7 +534,6 @@ static void Runner_StartScreen()
     ButtonAcknowledge(BUTTON1);
     ButtonAcknowledge(BUTTON2);
     ButtonAcknowledge(BUTTON3);
-    
     LCDMessage(LINE1_START_ADDR, strLine1);
     LCDMessage(LINE2_START_ADDR, strLine2);
     
@@ -583,24 +551,17 @@ static void Runner_StartScreen()
     bFirstEntry = FALSE;
   }
   
-  if (WasButtonPressed(BUTTON0))
+  if (WasButtonPressed(BUTTON0)) /* Go to Running state for Runner */
   {
-    ButtonAcknowledge(BUTTON0);         /* Clears all button presses before entering Running state */
-    ButtonAcknowledge(BUTTON1);
     ButtonAcknowledge(BUTTON2);
     ButtonAcknowledge(BUTTON3);
     
     LCDCommand(LCD_CLEAR_CMD);
     Game_StateMachine = Runner_Running;
-    bFirstEntry = TRUE;                  /* Resets uninitialized flag: game gets reinitialized next time StartScreen is entered */
+    bFirstEntry = TRUE;
   }
-  
-  if (WasButtonPressed(BUTTON3))
+  else if (WasButtonPressed(BUTTON3)) /* Go to MainMenu */
   {
-    ButtonAcknowledge(BUTTON1);
-    ButtonAcknowledge(BUTTON2);
-    ButtonAcknowledge(BUTTON3);
-    
     Game_StateMachine = Game_MainMenu;
     bFirstEntry = TRUE;
   }
@@ -672,14 +633,13 @@ static void Runner_Running()
 
 static void Game_GameOver()
 {
-  const u8 u8TickLength = 250;
   static u8 u8Counter = 250;
   static u8 u8TickNumber = 0;
   
   u8Counter--;
   if (u8Counter == 0) 
   {
-    u8Counter = u8TickLength;
+    u8Counter = 250;
     
     if (u8TickNumber == 0)
     {
@@ -701,28 +661,25 @@ static void Game_GameOver()
     }
     
     u8TickNumber++;
-    
-    if ((u8TickNumber == 8) || WasButtonPressed(BUTTON0) || WasButtonPressed(BUTTON1) || WasButtonPressed(BUTTON2) || WasButtonPressed(BUTTON3))
+  }
+  
+  /* Go to ScoreBoard */
+  if ((u8TickNumber == 8) || WasButtonPressed(BUTTON0) || WasButtonPressed(BUTTON1) || WasButtonPressed(BUTTON2) || WasButtonPressed(BUTTON3))
+  {
+    for (u8 i = 0; i < 8; i++)
     {
-      for (u8 i = 0; i < 8; i++)
-        LedOff((LedNumberType)i);
-      
-      ButtonAcknowledge(BUTTON0);
-      ButtonAcknowledge(BUTTON1);
-      ButtonAcknowledge(BUTTON2);
-      ButtonAcknowledge(BUTTON3);
-      
-      u8TickNumber = 0;
-      Game_StateMachine = Game_ScoreBoard;
+      LedOff((LedNumberType)i);
     }
+    u8TickNumber = 0;
+    u8Counter = 0;
+    Game_StateMachine = Game_ScoreBoard;
   }
 }
 static void Game_ScoreBoard()
 {
+  u8 au8Line1_str[18] = "Score: ";
+  u8 au8Line2_str[23] = "High Score: ";
   static bool bFirstEntry = TRUE;
-  u8 au8Str1[18] = "Score: ";
-  u8 au8Str2[23] = "High Score: ";
-  static u8 decimalScore[10];
   
   if (bFirstEntry)
   {
@@ -732,63 +689,19 @@ static void Game_ScoreBoard()
     ButtonAcknowledge(BUTTON2);
     ButtonAcknowledge(BUTTON3);
     
-    u32 u32ScoreTemp = u32Score;
-    u8 digit, index;
-    if (u32ScoreTemp != 0)
-    {
-      for (digit = 0; u32ScoreTemp != 0; digit++)
-      {
-        decimalScore[digit] = u32ScoreTemp % 10u;
-        u32ScoreTemp /= 10u;
-      }
-    }
-    else
-    {
-      digit = 1;
-      decimalScore[0] = 0;
-    }
-    for (index = 7; digit-- > 0; index++)
-    {
-      au8Str1[index] = decimalScore[digit] + '0';
-    }
-    au8Str1[index] = '\0';
-    LCDMessage(LINE1_START_ADDR, au8Str1);
-    
+    to_decimal(&au8Line1_str[7], u32Score);
     if (u32Score > u32HighScore[CurrentGame])
       u32HighScore[CurrentGame] = u32Score;
-    u32ScoreTemp = u32HighScore[CurrentGame];
-    if (u32ScoreTemp != 0)
-    {
-      for (digit = 0; u32ScoreTemp != 0; digit++)
-      {
-        decimalScore[digit] = u32ScoreTemp % 10u;
-        u32ScoreTemp /= 10u;
-      }
-    }
-    else
-    {
-      digit = 1;
-      decimalScore[0] = 0;
-    }
-    for (index = 12; digit-- > 0; index++)
-    {
-      au8Str2[index] = decimalScore[digit] + '0';
-    }
-    au8Str2[index] = '\0';
-    LCDMessage(LINE2_START_ADDR, au8Str2);
+    to_decimal(&au8Line2_str[12], u32HighScore[CurrentGame]);
+    
+    LCDMessage(LINE1_START_ADDR, au8Line1_str);
+    LCDMessage(LINE2_START_ADDR, au8Line2_str);
     
     bFirstEntry = FALSE;
   }
   
   if (WasButtonPressed(BUTTON0) || WasButtonPressed(BUTTON1) || WasButtonPressed(BUTTON2) || WasButtonPressed(BUTTON3))
   {
-    ButtonAcknowledge(BUTTON0);
-    ButtonAcknowledge(BUTTON1);
-    ButtonAcknowledge(BUTTON2);
-    ButtonAcknowledge(BUTTON3);
-    
-    bFirstEntry = TRUE;
-    
     if (CurrentGame == RUNNER)
     {
       Game_StateMachine = Runner_StartScreen;
@@ -797,6 +710,7 @@ static void Game_ScoreBoard()
     {
       Game_StateMachine = Frogger_StartScreen;
     }
+    bFirstEntry = TRUE;
   }
 }
 
@@ -813,6 +727,29 @@ static void led_score()
       LedOff((LedNumberType)i);
     }
   }
+}
+static void to_decimal(u8 *str, u32 num)
+{
+  u8 decimal[10];
+  u8 digit;
+  if (num == 0)
+  {
+    digit = 0;
+    decimal[0] = 0;
+  }
+  else
+  {
+    for (digit = 0; num != 0; digit++)
+    {
+      decimal[digit] = num % 10u;
+      num /= 10u;
+    }
+  }
+  for (; digit-- > 0; str++)
+  {
+    *str = decimal[digit] + '0';
+  }
+  *str = '\0';
 }
 static void cactus_update()
 { 
@@ -843,8 +780,6 @@ static void cactus_update()
   }
   u8SequenceLength--;
 }
-
-
 static u8 randInt()
 {
   for (u8 i = 0; i < 8; i++)

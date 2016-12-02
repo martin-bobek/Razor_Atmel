@@ -76,6 +76,7 @@ static void Game_ScoreBoard();
 
 static void cactus_update();
 static void led_score();
+static void to_decimal(u8 *str, u32 num);
 static u8 randInt();
 
 /***********************************************************************************************************************
