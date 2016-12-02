@@ -62,15 +62,16 @@ static u32 UserApp_u32Timeout;                      /* Timeout counter used acro
 static fnCode_type Game_StateMachine;               /* Game state machine function pointer */
 
 Game_Type CurrentGame = RUNNER;                     /* Used for modifying behaviour of general purpose functions */
+static u32 u32TickLength;                           /* Initial game tick length */
 
 static u32 u32Score = 0;                            /* Number of gameticks the player has survived */
 static u32 u32HighScore[2] = { 0, 0 };
 static u8 au8Cactuses[21];                          /* Characters for the bottom row of LCD */
-static u32 u32TickLength;                           /* Initial game tick length */
 static u16 LFSR;                                    /* Linear Feedback Shift Register for randInt */
 static bool bLFSRinitialized = FALSE;               /* Indicates LFSR has not been initialized with seed */
-static u16 u16SequenceLength;                       /* Remaining length of sequence of cactuses/spaces */
-static bool bCactusSequence;                        /* True indicates current sequence is cactuses */
+static u8 u8SequenceLength;                       /* Remaining length of sequence of cactuses/spaces */
+static RunnerSequence_Type SequenceType;            /* True indicates current sequence is cactuses */
+static bool bScreenUpdate;
 
 static s8 s8Position;
 static u8 au8Line1[21];
@@ -79,6 +80,17 @@ static FroggerLine_Type Line1, Line2;
 static FroggerLine_Type *lines[2];
 static u32 u32Counter;
 static u8 line_stickman = 0;
+static bool bPositionChanged;
+
+
+/* 
+Known Bugs:
+Runner: Returning from ConfirmExit to Running leaves  message on top line.
+Runner: Exiting game leaves led's on.
+
+*/
+
+
 
 /**********************************************************************************************************************
 Function Definitions
@@ -258,6 +270,65 @@ static void Game_HighScore()
     bFirstEntry = TRUE;
   }
 }
+static void Game_ConfirmExit()
+{
+  u8 *au8Line1_str = "      EXIT TO:      ";
+  u8 *au8Line2_str = "MENU START    CANCEL";
+  static bool bFirstEntry = TRUE;
+  
+  if (bFirstEntry)
+  {
+    LCDMessage(LINE1_START_ADDR, au8Line1_str);
+    LCDMessage(LINE2_START_ADDR, au8Line2_str);
+    
+    bFirstEntry = FALSE;
+  }
+  
+  if (WasButtonPressed(BUTTON3))
+  {
+    ButtonAcknowledge(BUTTON0);
+    ButtonAcknowledge(BUTTON1);
+    ButtonAcknowledge(BUTTON2);
+    ButtonAcknowledge(BUTTON3);
+    
+    if (CurrentGame == RUNNER)
+    {
+      Game_StateMachine = Runner_Running;
+    }
+    else
+    {
+      Game_StateMachine = Frogger_Running;
+    }
+    
+    bFirstEntry = TRUE;
+  }
+  else if (WasButtonPressed(BUTTON1))
+  {
+    ButtonAcknowledge(BUTTON0);
+    ButtonAcknowledge(BUTTON1);
+    ButtonAcknowledge(BUTTON2);
+    
+    if (CurrentGame == RUNNER)
+    {
+      Game_StateMachine = Runner_StartScreen;
+    }
+    else
+    {
+      Game_StateMachine = Frogger_StartScreen;
+    }
+    
+    bFirstEntry = TRUE;
+  }
+  else if (WasButtonPressed(BUTTON0))
+  {
+    ButtonAcknowledge(BUTTON0);
+    ButtonAcknowledge(BUTTON1);
+    
+    Game_StateMachine = Game_MainMenu;
+    
+    bFirstEntry = TRUE;
+  }
+}
 
 static void Frogger_StartScreen()
 {
@@ -278,17 +349,18 @@ static void Frogger_StartScreen()
     
     for (u8 i = 0; i < 20; i++)
       au8Line1[i] = '=';
-    Line1 = (FroggerLine_Type){ au8Line1, FALSE, 0, TRUE };
-    Line2 = (FroggerLine_Type){ au8Line2, TRUE, 0, FALSE };
+    Line1 = (FroggerLine_Type){ au8Line1, LEFT, 0, LOGS };
+    Line2 = (FroggerLine_Type){ au8Line2, RIGHT, 0, WATER };
     new_line(&Line2);
-    
     lines[0] = &Line1;
     lines[1] = &Line2;
+    
     u32Score = 0;
     s8Position = 10;
     u32TickLength = 500;
-    u32Counter = 500;
+    u32Counter = u32TickLength;
     line_stickman = 0;
+    bPositionChanged = FALSE;
     
     bUninitialized = FALSE;
   }
@@ -319,8 +391,13 @@ static void Frogger_StartScreen()
 }
 static void Frogger_Running()
 {
-  u8 strStickMan[] = { 171, '\0' };
-  bool bPositionChanged = FALSE;
+  if (WasButtonPressed(BUTTON3))
+  {
+    ButtonAcknowledge(BUTTON3);
+    Game_StateMachine = Game_ConfirmExit;
+    bPositionChanged = TRUE;
+    return;
+  }
   
   u32Counter--;
   if (u32Counter == 0)
@@ -338,7 +415,7 @@ static void Frogger_Running()
       line_stickman--;
     if (u32Score != 0)
     {
-      if (lines[(line_stickman == 0) ? 0 : 1]->direction)
+      if (lines[(line_stickman == 0) ? 0 : 1]->direction == RIGHT)
       {
         s8Position++;
       }
@@ -354,10 +431,17 @@ static void Frogger_Running()
   
   if (WasButtonPressed(BUTTON1))
   {
-    u32Score++;
     ButtonAcknowledge(BUTTON1);
-    bPositionChanged = TRUE;
-    line_stickman = 2;
+    if (line_stickman == 0)
+    {
+      u32Score++;
+      if (u32TickLength > 250)
+      {
+        u32TickLength--;
+      }
+      bPositionChanged = TRUE;
+      line_stickman = 2;
+    }
   }
   if (WasButtonPressed(BUTTON0))
   {
@@ -392,32 +476,33 @@ static void Frogger_Running()
     }
     else
     {
-      LCDMessage(((line_stickman == 0) ? LINE2_START_ADDR : LINE1_START_ADDR) + s8Position, strStickMan);
+      LCDMessage(((line_stickman == 0) ? LINE2_START_ADDR : LINE1_START_ADDR) + s8Position, "\xAB");
     }
+    bPositionChanged = FALSE;
   }
 }
  
 static void new_line(FroggerLine_Type *line)
 {
   line->sequence_length = 0;
-  line->sequence_type = FALSE;
+  line->sequence_type = WATER;
   
-  for (u8 i = line->direction ? 19 : 0; line->direction ? (i-- > 0) : (i < 20); line->direction ?  i : i++)
+  for (u8 i = (line->direction == RIGHT) ? 19 : 0; (line->direction == RIGHT) ? (i-- > 0) : (i < 20); (line->direction == RIGHT) ?  i : i++)
   {
     if (line->sequence_length == 0)
     {
-      if (line->sequence_type == TRUE)
+      if (line->sequence_type == LOGS)
       {
-        line->sequence_type = FALSE;
+        line->sequence_type = WATER;
         line->sequence_length = 1 + randInt() % 4; /* 1 to 4 */
       }
       else
       {
-        line->sequence_type = TRUE;
+        line->sequence_type = LOGS;
         line->sequence_length =  3 + randInt() % 3; /* 3 to 5 */
       }
     }
-    if (line->sequence_type)
+    if (line->sequence_type == LOGS)
     {
       line->line_ptr[i] = '=';
     }
@@ -431,7 +516,7 @@ static void new_line(FroggerLine_Type *line)
 static void shift_line(FroggerLine_Type *line)
 {
   u8 new_index;
-  if (line->direction == TRUE) /* right */
+  if (line->direction == RIGHT)
   {
     for (u8 i = 20; i-- > 0;)
       line->line_ptr[i] = line->line_ptr[i - 1];
@@ -445,18 +530,18 @@ static void shift_line(FroggerLine_Type *line)
   }
   if (line->sequence_length == 0)
   {
-    if (line->sequence_type == TRUE)
+    if (line->sequence_type == LOGS)
     {
-      line->sequence_type = FALSE;
+      line->sequence_type = WATER;
       line->sequence_length = 1 + randInt() % 4; /* 1 to 4 */
     }
     else
     {
-      line->sequence_type = TRUE;
+      line->sequence_type = LOGS;
       line->sequence_length =  3 + randInt() % 3; /* 3 to 5 */
     }
   }
-  if (line->sequence_type) /* log 8 */
+  if (line->sequence_type == LOGS)
   {
     line->line_ptr[new_index] = '=';
   }
@@ -470,11 +555,11 @@ static void shift_line(FroggerLine_Type *line)
 
 static void Runner_StartScreen()
 {
-  static bool bUninitialized = TRUE;
   u8 *strLine1 = "          CONTROLS: ";
   u8 *strLine2 = "START      JUMP  ESC";
+  static bool bFirstEntry = TRUE;
   
-  if (bUninitialized)
+  if (bFirstEntry)
   {
     ButtonAcknowledge(BUTTON0);         /* Clears all button presses before entering Running state */
     ButtonAcknowledge(BUTTON1);
@@ -490,11 +575,12 @@ static void Runner_StartScreen()
     }
     au8Cactuses[20] = '\0';
     u32TickLength = 250;
-    u16SequenceLength = 0;
-    bCactusSequence = FALSE;
+    u8SequenceLength = 0;
+    SequenceType = GROUND;
     u32Score = 0;
+    bScreenUpdate = TRUE;
     
-    bUninitialized = FALSE;
+    bFirstEntry = FALSE;
   }
   
   if (WasButtonPressed(BUTTON0))
@@ -506,7 +592,7 @@ static void Runner_StartScreen()
     
     LCDCommand(LCD_CLEAR_CMD);
     Game_StateMachine = Runner_Running;
-    bUninitialized = TRUE;             /* Resets uninitialized flag: game gets reinitialized next time StartScreen is entered */
+    bFirstEntry = TRUE;                  /* Resets uninitialized flag: game gets reinitialized next time StartScreen is entered */
   }
   
   if (WasButtonPressed(BUTTON3))
@@ -516,28 +602,33 @@ static void Runner_StartScreen()
     ButtonAcknowledge(BUTTON3);
     
     Game_StateMachine = Game_MainMenu;
-    bUninitialized = TRUE;
+    bFirstEntry = TRUE;
   }
 }
 static void Runner_Running()
-{
-  u8 strStickMan[] = { 171, '\0' };
+{ 
   static u32 u32Counter = 250;
   static u8 u8Jump = 0;
   
   if (WasButtonPressed(BUTTON3))
   {
-    Game_StateMachine = Runner_StartScreen;
+    ButtonAcknowledge(BUTTON3);
+    Game_StateMachine = Game_ConfirmExit;
+    bScreenUpdate = TRUE;
     return;
   }
+  
   u32Counter--;
   if (u32Counter == 0)
   {
     u32Counter = u32TickLength;
+    if (u32TickLength > 125)
+    {
+      u32TickLength--;
+    }
     u32Score++;
     led_score();
     cactus_update();
-    LCDMessage(LINE2_START_ADDR, au8Cactuses);
     
     if (u8Jump != 0)
     {
@@ -549,12 +640,19 @@ static void Runner_Running()
     }
     ButtonAcknowledge(BUTTON2);              /* Clears button press even if button was pressed while still in air */
     
+    bScreenUpdate = TRUE;
+  }
+  
+  if (bScreenUpdate)
+  {
+    LCDMessage(LINE2_START_ADDR, au8Cactuses);
+    
     if (u8Jump == 0)
     {
       LCDMessage(LINE1_START_ADDR + 1, " "); /* Clears stick man if in upper row */
       if (au8Cactuses[1] == ' ')
       {
-        LCDMessage(LINE2_START_ADDR + 1, strStickMan);
+        LCDMessage(LINE2_START_ADDR + 1, "\xAB");
       }
       else
       {
@@ -564,8 +662,10 @@ static void Runner_Running()
     }
     else
     {
-      LCDMessage(LINE1_START_ADDR + 1, strStickMan);
+      LCDMessage(LINE1_START_ADDR + 1, "\xAB");
     }
+    
+    bScreenUpdate = FALSE;
   }
 }
 
@@ -714,35 +814,34 @@ static void led_score()
     }
   }
 }
-
 static void cactus_update()
 { 
   for (u8 i = 0; i < 19; i++)               /* Shift Cactuses 1 left)  */
   {
     au8Cactuses[i] = au8Cactuses[i + 1];
   }
-  if (u16SequenceLength == 0)
+  if (u8SequenceLength == 0)
   {
-    if (bCactusSequence)
+    if (SequenceType == CACTUS)
     {
-      bCactusSequence = FALSE;
-      u16SequenceLength = 2 + randInt() % 6; /* Sequences of length 2 to 7 */
+      SequenceType = GROUND;
+      u8SequenceLength = 2 + randInt() % 6; /* Sequences of length 2 to 7 */
     }
     else
     {
-      bCactusSequence = TRUE;
-      u16SequenceLength = 1 + randInt() % 3; /* Sequences of length 1 to 3 */
+      SequenceType = CACTUS;
+      u8SequenceLength = 1 + randInt() % 3; /* Sequences of length 1 to 3 */
     }
   }
-  if (bCactusSequence)
+  if (SequenceType == CACTUS)
   {
-    au8Cactuses[19] = 29;
+    au8Cactuses[19] = 0x1D;
   }
   else
   {
     au8Cactuses[19] = ' ';
   }
-  u16SequenceLength--;
+  u8SequenceLength--;
 }
 
 
