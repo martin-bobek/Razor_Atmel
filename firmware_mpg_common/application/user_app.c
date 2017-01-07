@@ -87,6 +87,7 @@ static bool bPositionChanged;
 Known Bugs:
 Runner: Returning from ConfirmExit to Running leaves message on top line.
 Runner: Exiting game leaves led's on.
+Runner: Doesn't flash game over on death.
 
 Game: A highscore of more than 8 digits is not representable in ScoreBoard state
 
@@ -232,7 +233,8 @@ static void Game_MainMenu()
 }
 static void Game_HighScore()
 {
-  u8 au8Score_str[23] = "High Score: ";
+  u8 au8Score_str1[] = "High Score:";
+  u8 au8Score_str2[] = "          ";
   static bool bFirstEntry = TRUE;
   
   if (bFirstEntry)
@@ -243,8 +245,9 @@ static void Game_HighScore()
     ButtonAcknowledge(BUTTON3);
     LCDCommand(LCD_CLEAR_CMD);
     
-    to_decimal(&au8Score_str[12], u32HighScore[CurrentGame]);
-    LCDMessage(LINE1_START_ADDR, au8Score_str);
+    to_decimal(au8Score_str2, u32HighScore[CurrentGame]);
+    LCDMessage(LINE1_START_ADDR, au8Score_str1);
+    LCDMessage(LINE2_START_ADDR + 6, au8Score_str2);
     
     bFirstEntry = FALSE;
   }
@@ -279,6 +282,7 @@ static void Game_ConfirmExit()
     ButtonAcknowledge(BUTTON3);
     if (CurrentGame == RUNNER)
     {
+      LCDCommand(LCD_CLEAR_CMD);
       Game_StateMachine = Runner_Running;
     }
     else
@@ -291,6 +295,10 @@ static void Game_ConfirmExit()
   }
   else if (WasButtonPressed(BUTTON1)) /* Go to StartScreen state of CurrentGame */
   {
+    for (u8 i = 0; i < 8; i++)
+    {
+      LedOff((LedNumberType)i);
+    }
     if (CurrentGame == RUNNER)
     {
       Game_StateMachine = Runner_StartScreen;
@@ -303,6 +311,10 @@ static void Game_ConfirmExit()
   }
   else if (WasButtonPressed(BUTTON0)) /* Go to MainMenu state */
   { 
+    for (u8 i = 0; i < 8; i++)
+    {
+      LedOff((LedNumberType)i);
+    }
     Game_StateMachine = Game_MainMenu;
     bFirstEntry = TRUE;
   }
@@ -618,6 +630,8 @@ static void Runner_Running()
       else
       {
         LCDMessage(LINE2_START_ADDR + 1, "X");
+        ButtonAcknowledge(BUTTON0);
+        ButtonAcknowledge(BUTTON1);
         Game_StateMachine = Game_GameOver;
       }
     }
@@ -652,12 +666,16 @@ static void Game_GameOver()
     if (u8TickNumber % 2)
     {
       for (u8 i = 0; i < 8; i++)
+      {
         LedOff((LedNumberType)i);
+      }
     }
     else
     {
       for (u8 i = 0; i < 8; i++)
+      {
         LedOn((LedNumberType)i);
+      }
     }
     
     u8TickNumber++;
@@ -678,7 +696,7 @@ static void Game_GameOver()
 static void Game_ScoreBoard()
 {
   u8 au8Line1_str[18] = "Score: ";
-  u8 au8Line2_str[23] = "High Score: ";
+  u8 au8Line2_str[17] = "High: ";
   static bool bFirstEntry = TRUE;
   
   if (bFirstEntry)
@@ -692,7 +710,7 @@ static void Game_ScoreBoard()
     to_decimal(&au8Line1_str[7], u32Score);
     if (u32Score > u32HighScore[CurrentGame])
       u32HighScore[CurrentGame] = u32Score;
-    to_decimal(&au8Line2_str[12], u32HighScore[CurrentGame]);
+    to_decimal(&au8Line2_str[6], u32HighScore[CurrentGame]);
     
     LCDMessage(LINE1_START_ADDR, au8Line1_str);
     LCDMessage(LINE2_START_ADDR, au8Line2_str);
@@ -734,7 +752,7 @@ static void to_decimal(u8 *str, u32 num)
   u8 digit;
   if (num == 0)
   {
-    digit = 0;
+    digit = 1;
     decimal[0] = 0;
   }
   else
