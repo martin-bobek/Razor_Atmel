@@ -85,11 +85,7 @@ static bool bPositionChanged;
 
 /* 
 Known Bugs:
-Runner: Returning from ConfirmExit to Running leaves message on top line.
-Runner: Exiting game leaves led's on.
-Runner: Doesn't flash game over on death.
-
-Game: A highscore of more than 8 digits is not representable in ScoreBoard state
+During frogger_running glitched characters sometimes appear.
 
 */
 
@@ -155,7 +151,6 @@ Promises:
 void UserAppRunActiveState(void)
 {
   UserApp_StateMachine();
-
 } /* end UserAppRunActiveState */
 
 
@@ -811,10 +806,21 @@ static u8 randInt()
 State Machine Function Definitions
 **********************************************************************************************************************/
 
+extern u32 G_u32MessagingFlags;
+
 /*-------------------------------------------------------------------------------------------------------------------*/
 /* Wait for a message to be queued */
 static void UserAppSM_Idle(void)
 {
+  if (G_u32MessagingFlags & _MESSAGING_TX_QUEUE_ALMOST_FULL)
+  {
+    DebugPrintf("Queue Almost Full!\n\r");
+  }
+  if (G_u32MessagingFlags & _MESSAGING_TX_QUEUE_FULL)
+  {
+    DebugPrintf("Queue Full!\n\r");
+  }
+  
   Game_StateMachine();
 } /* end UserAppSM_Idle() */
      
