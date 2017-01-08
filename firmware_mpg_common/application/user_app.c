@@ -65,11 +65,12 @@ Game_Type CurrentGame = RUNNER;                     /* Used for modifying behavi
 static u32 u32TickLength;                           /* Initial game tick length */
 
 static u32 u32Score = 0;                            /* Number of gameticks the player has survived */
-static u32 u32HighScore[2] = { 0, 0 };
+static u32 u32HighScore[3] = { 0, 0, 0 };
+
 static u8 au8Cactuses[21];                          /* Characters for the bottom row of LCD */
 static u16 LFSR;                                    /* Linear Feedback Shift Register for randInt */
 static bool bLFSRinitialized = FALSE;               /* Indicates LFSR has not been initialized with seed */
-static u8 u8SequenceLength;                       /* Remaining length of sequence of cactuses/spaces */
+static u8 u8SequenceLength;                         /* Remaining length of sequence of cactuses/spaces */
 static RunnerSequence_Type SequenceType;            /* True indicates current sequence is cactuses */
 static bool bScreenUpdate;
 
@@ -82,6 +83,10 @@ static u32 u32Counter;
 static u8 line_stickman = 0;
 static bool bPositionChanged;
 
+static u8 au8Memory_Sequence[125];
+static u32 u32Memory_SequenceLength;
+static u32 u32Memory_PauseLength = 250;
+static u32 u32Memory_SequencePosition;
 
 /* 
 Known Bugs:
@@ -162,6 +167,7 @@ static void Game_MainMenu()
   u8 *au8Controls = "SCORE  \x7F    \x7E  ENTER";
   u8 *au8Runner = "       RUNNER       ";
   u8 *au8Frogger = "      FROGGER       ";
+  u8 *au8Memory = "    MEMORY GAME     ";
   static bool bFirstEntry = TRUE;
   
   if (bFirstEntry)
@@ -175,9 +181,13 @@ static void Game_MainMenu()
     {
       LCDMessage(LINE1_START_ADDR, au8Runner);
     }
-    else
+    else if (CurrentGame == FROGGER)
     {
       LCDMessage(LINE1_START_ADDR, au8Frogger);
+    }
+    else
+    {
+      LCDMessage(LINE1_START_ADDR, au8Memory);
     }
     LCDMessage(LINE2_START_ADDR, au8Controls);
     bFirstEntry = FALSE;
@@ -189,9 +199,13 @@ static void Game_MainMenu()
     {
       Game_StateMachine = Runner_StartScreen;
     }
-    else
+    else if (CurrentGame == FROGGER)
     {
       Game_StateMachine = Frogger_StartScreen;
+    }
+    else
+    {
+      Game_StateMachine = Memory_StartScreen;
     }
     
     if (bLFSRinitialized == FALSE)
@@ -215,6 +229,11 @@ static void Game_MainMenu()
       CurrentGame = RUNNER;
       LCDMessage(LINE1_START_ADDR, au8Runner);
     }
+    else if (CurrentGame == MEMORY)
+    {
+      CurrentGame = FROGGER;
+      LCDMessage(LINE1_START_ADDR, au8Frogger);
+    }
   }
   else if (WasButtonPressed(BUTTON2))        /* Move RIGHT in list of games */
   {
@@ -223,6 +242,11 @@ static void Game_MainMenu()
     {
       CurrentGame = FROGGER;
       LCDMessage(LINE1_START_ADDR, au8Frogger);
+    }
+    else if (CurrentGame == FROGGER)
+    {
+      CurrentGame = MEMORY;
+      LCDMessage(LINE1_START_ADDR, au8Memory);
     }
   }
 }
@@ -280,11 +304,15 @@ static void Game_ConfirmExit()
       LCDCommand(LCD_CLEAR_CMD);
       Game_StateMachine = Runner_Running;
     }
-    else
+    else if (CurrentGame == FROGGER)
     {
       ButtonAcknowledge(BUTTON0);
       ButtonAcknowledge(BUTTON1);
       Game_StateMachine = Frogger_Running;
+    }
+    else
+    {
+      Game_StateMachine = Memory_Output;
     }
     bFirstEntry = TRUE;
   }
@@ -298,9 +326,13 @@ static void Game_ConfirmExit()
     {
       Game_StateMachine = Runner_StartScreen;
     }
-    else
+    else if (CurrentGame == FROGGER)
     {
       Game_StateMachine = Frogger_StartScreen;
+    }
+    else
+    {
+      Game_StateMachine = Memory_StartScreen;
     }
     bFirstEntry = TRUE;
   }
@@ -314,6 +346,207 @@ static void Game_ConfirmExit()
     bFirstEntry = TRUE;
   }
 }
+
+
+static void Memory_StartScreen()
+{
+  u8 *strLine1 = " Repeat the Pattern ";
+  u8 *strLine2 = "START            ESC";
+  static bool bFirstEntry = TRUE;
+  
+  if (bFirstEntry)
+  {
+    ButtonAcknowledge(BUTTON0);         /* Clears all button presses before entering Running state */
+    ButtonAcknowledge(BUTTON1);
+    ButtonAcknowledge(BUTTON2);
+    ButtonAcknowledge(BUTTON3);
+    LCDMessage(LINE1_START_ADDR, strLine1);
+    LCDMessage(LINE2_START_ADDR, strLine2);
+    
+    u32Memory_SequenceLength = 0;
+    u32Memory_SequencePosition = 0;
+    u32Score = 0;
+    
+    bFirstEntry = FALSE;
+  }
+  
+  if (WasButtonPressed(BUTTON0)) /* Go to Running state for Runner */
+  {
+    //ButtonAcknowledge(BUTTON2);
+    //ButtonAcknowledge(BUTTON3);
+    LCDCommand(LCD_CLEAR_CMD);
+    Game_StateMachine = Memory_Output;
+    bFirstEntry = TRUE;
+  }
+  else if (WasButtonPressed(BUTTON3)) /* Go to MainMenu */
+  {
+    Game_StateMachine = Game_MainMenu;
+    bFirstEntry = TRUE;
+  }
+}
+static void Memory_Input()
+{
+  static u32 u32GOTimer = 5000;
+  static bool abButtonHeld[4] = { FALSE, FALSE, FALSE, FALSE };
+  static bool bCompleted = FALSE;
+  
+  u32GOTimer--;
+  if (bCompleted)
+  {
+    if (u32GOTimer == 0)
+    {
+      LCDCommand(LCD_CLEAR_CMD);
+      LedOn(LCD_RED);
+      LedOn(LCD_BLUE);
+      u32Memory_SequencePosition = 0;
+      u32Score++;
+      Game_StateMachine = Memory_Output;
+      bCompleted = FALSE;
+    }
+    return;
+  }
+  
+  for (u32 i = 0; i < 4; i++)
+  {
+    if (WasButtonPressed(i))
+    {
+      ButtonAcknowledge(i);
+      u32GOTimer = 5000;
+      switch (i)
+      {
+      case 0:
+        LCDMessage(LINE1_START_ADDR, "\x23");
+        LCDMessage(LINE2_START_ADDR, "\x23");
+        break;
+      case 1:
+        LCDMessage(LINE1_START_ADDR + 6, "\x23");
+        LCDMessage(LINE2_START_ADDR + 6, "\x23");
+        break;
+      case 2:
+        LCDMessage(LINE1_START_ADDR + 13, "\x23");
+        LCDMessage(LINE2_START_ADDR + 13, "\x23");
+        break;
+      case 3:
+        LCDMessage(LINE1_START_ADDR + 19, "\x23");
+        LCDMessage(LINE2_START_ADDR + 19, "\x23");
+        break;
+      }
+      if (i != (au8Memory_Sequence[u32Memory_SequencePosition / 4] >> (2 * (u32Memory_SequencePosition % 4))) % 4)
+      {
+        Game_StateMachine = Game_GameOver;
+      }
+      else if(++u32Memory_SequencePosition == u32Memory_SequenceLength)
+      {
+        bCompleted = TRUE;
+        u32GOTimer = 300;
+        LedOff(LCD_RED);
+        LedOff(LCD_BLUE);
+        break;
+      }
+      abButtonHeld[i] = TRUE;
+      
+      break;
+    }
+  }
+  
+  if (abButtonHeld[0] && !IsButtonPressed(BUTTON0))
+  {
+    LCDMessage(LINE1_START_ADDR, " ");
+    LCDMessage(LINE2_START_ADDR, " ");
+    abButtonHeld[0] = FALSE;
+  }
+  if (abButtonHeld[1] && !IsButtonPressed(BUTTON1))
+  {
+    LCDMessage(LINE1_START_ADDR + 6, " ");
+    LCDMessage(LINE2_START_ADDR + 6, " ");
+    abButtonHeld[1] = FALSE;
+  }
+  if (abButtonHeld[2] && !IsButtonPressed(BUTTON2))
+  {
+    LCDMessage(LINE1_START_ADDR + 13, " ");
+    LCDMessage(LINE2_START_ADDR + 13, " ");
+    abButtonHeld[2] = FALSE;
+  }
+  if (abButtonHeld[3] && !IsButtonPressed(BUTTON3))
+  {
+    LCDMessage(LINE1_START_ADDR + 19, " ");
+    LCDMessage(LINE2_START_ADDR + 19, " ");
+    abButtonHeld[3] = FALSE;
+  }
+  
+  if (u32GOTimer == 0)
+  {
+    Game_StateMachine = Game_GameOver;
+    u32GOTimer = 5000;
+    LCDCommand(LCD_CLEAR_CMD);
+  }
+}
+static void Memory_Output()
+{
+  static MemoryOutput_Type OutputState = PAUSE;
+  static u32 u32Counter = 250;
+  
+  u32Counter--;
+  if (u32Counter == 0)
+  {
+    if (OutputState == PAUSE)
+    {
+      u32Counter = 300;
+      OutputState = DISPLAY;
+      
+      if (u32Memory_SequencePosition == 0)
+      {
+        if (u32Memory_SequenceLength % 4 == 0)
+        {
+          if (u32Memory_SequenceLength == 500)
+          {
+            u32Memory_SequenceLength = 0;
+            u32Memory_SequencePosition = 0;
+          }
+          au8Memory_Sequence[u32Memory_SequenceLength / 4] = randInt();
+        }
+        u32Memory_SequenceLength++;
+      }
+      
+      switch ((au8Memory_Sequence[u32Memory_SequencePosition / 4] >> (2 * (u32Memory_SequencePosition % 4))) % 4)
+      {
+      case 0:
+        LCDMessage(LINE1_START_ADDR, "\x23");
+        LCDMessage(LINE2_START_ADDR, "\x23");
+        break;
+      case 1:
+        LCDMessage(LINE1_START_ADDR + 6, "\x23");
+        LCDMessage(LINE2_START_ADDR + 6, "\x23");
+        break;
+      case 2:
+        LCDMessage(LINE1_START_ADDR + 13, "\x23");
+        LCDMessage(LINE2_START_ADDR + 13, "\x23");
+        break;
+      case 3:
+        LCDMessage(LINE1_START_ADDR + 19, "\x23");
+        LCDMessage(LINE2_START_ADDR + 19, "\x23");
+        break;
+      }
+      u32Memory_SequencePosition++;
+    }
+    else
+    {
+      if (u32Memory_SequencePosition == u32Memory_SequenceLength)
+      {
+        ButtonAcknowledge(BUTTON0);
+        ButtonAcknowledge(BUTTON1);
+        ButtonAcknowledge(BUTTON2);
+        ButtonAcknowledge(BUTTON3);
+        Game_StateMachine = Memory_Input;
+        u32Memory_SequencePosition = 0;
+      }
+      u32Counter = u32Memory_PauseLength;
+      OutputState = PAUSE;
+      LCDCommand(LCD_CLEAR_CMD);
+    }
+  }
+}
+
 
 static void Frogger_StartScreen()
 {
@@ -653,6 +886,8 @@ static void Game_GameOver()
     if (u8TickNumber == 0)
     {
       LCDMessage(LINE1_START_ADDR, "     GAME OVER!     ");
+      LedOff(LCD_GREEN);
+      LedOff(LCD_BLUE);
       ButtonAcknowledge(BUTTON0);
       ButtonAcknowledge(BUTTON1);
       ButtonAcknowledge(BUTTON2);
@@ -683,6 +918,8 @@ static void Game_GameOver()
     {
       LedOff((LedNumberType)i);
     }
+    LedOn(LCD_GREEN);
+    LedOn(LCD_BLUE);
     u8TickNumber = 0;
     u8Counter = 0;
     Game_StateMachine = Game_ScoreBoard;
@@ -719,9 +956,13 @@ static void Game_ScoreBoard()
     {
       Game_StateMachine = Runner_StartScreen;
     }
-    else
+    else if (CurrentGame == FROGGER)
     {
       Game_StateMachine = Frogger_StartScreen;
+    }
+    else
+    {
+      Game_StateMachine = Memory_StartScreen;
     }
     bFirstEntry = TRUE;
   }

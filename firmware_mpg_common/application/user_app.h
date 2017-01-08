@@ -23,7 +23,7 @@ Header file for yournewtaskname.c
 /**********************************************************************************************************************
 Type Definitions
 **********************************************************************************************************************/
-typedef enum { RUNNER, FROGGER } Game_Type;
+typedef enum { RUNNER, FROGGER, MEMORY } Game_Type;
 typedef enum { CACTUS, GROUND } RunnerSequence_Type;
 typedef enum { WATER, LOGS } FroggerSequence_Type;
 typedef enum { LEFT, RIGHT } FroggerDirection_Type;
@@ -32,6 +32,7 @@ typedef struct {
   FroggerDirection_Type direction;
   u8 sequence_length;
   FroggerSequence_Type sequence_type; } FroggerLine_Type;
+typedef enum { PAUSE, DISPLAY } MemoryOutput_Type;
 
 
 /**********************************************************************************************************************
@@ -61,6 +62,10 @@ void UserAppRunActiveState(void);
 static void Game_MainMenu();
 static void Game_HighScore();
 static void Game_ConfirmExit();
+
+static void Memory_StartScreen();
+static void Memory_Input();
+static void Memory_Output();
 
 static void Frogger_Running();
 static void Frogger_StartScreen();
