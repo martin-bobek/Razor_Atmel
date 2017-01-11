@@ -59,13 +59,19 @@ void UserAppRunActiveState(void);
 /*--------------------------------------------------------------------------------------------------------------------*/
 /* Private functions                                                                                                  */
 /*--------------------------------------------------------------------------------------------------------------------*/
+static void Sound_Service();
+
 static void Game_MainMenu();
 static void Game_HighScore();
 static void Game_ConfirmExit();
+static void Game_GameOver();
+static void Game_ScoreBoard();
+
 
 static void Memory_StartScreen();
 static void Memory_Input();
 static void Memory_Output();
+
 
 static void Frogger_Running();
 static void Frogger_StartScreen();
@@ -73,13 +79,14 @@ static void Frogger_StartScreen();
 static void new_line(FroggerLine_Type *line);
 static void shift_line(FroggerLine_Type *line);
 
+
 static void Runner_Running();
 static void Runner_StartScreen();
 
-static void Game_GameOver();
-static void Game_ScoreBoard();
-
 static void cactus_update();
+
+
+static void timed_sound(u16 note, u16 duration_ms);
 static void led_score();
 static void to_decimal(u8 *str, u32 num);
 static u8 randInt();
