@@ -121,7 +121,8 @@ To Do:
 /* 
 Known Bugs:
 
-During frogger_running and memory_running, glitched characters sometimes appear.
+In frogger if you die by going sideways, your score is one less than it should be.     <- Fixed
+During frogger_running and memory_running, glitched characters sometimes appear.       <- Haven't seen in a really long time
 */
 
 
@@ -655,8 +656,8 @@ static void Memory_Output()
   if (WasButtonPressed(BUTTON3))
   {
     ButtonAcknowledge(BUTTON3);
-    OutputState = PAUSE;
-    u32Counter = u32Memory_PauseLength;
+    OutputState = DISPLAY;
+    u32Counter = 1;
     Game_StateMachine = Game_ConfirmExit;
     return;
   }
@@ -868,7 +869,10 @@ static void Frogger_Running()
     if (aFrogger_Lines[(u8Frogger_Forward == 0) ? 0 : 1]->line_ptr[s8Frogger_Position] == ' ')
     {
       LCDMessage(((u8Frogger_Forward == 0) ? LINE2_START_ADDR : LINE1_START_ADDR) + s8Frogger_Position, "X");
-      u32Score--;
+      if (u8Frogger_Forward != 0)
+      {
+        u32Score--;
+      }
       bScoreChanged = FALSE;
       Game_StateMachine = Game_GameOver;
       
