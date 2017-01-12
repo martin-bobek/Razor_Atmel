@@ -656,8 +656,8 @@ static void Memory_Output()
   if (WasButtonPressed(BUTTON3))
   {
     ButtonAcknowledge(BUTTON3);
-    OutputState = DISPLAY;
-    u32Counter = 1;
+    OutputState = PAUSE;
+    u32Counter = u32Memory_PauseLength;
     Game_StateMachine = Game_ConfirmExit;
     return;
   }
@@ -682,6 +682,10 @@ static void Memory_Output()
           au8Memory_Sequence[u32Memory_SequenceLength / 4] = randInt();
         }
         u32Memory_SequenceLength++;
+      }
+      if (u32Memory_SequenceLength == u32Memory_SequencePosition)
+      {
+        return;
       }
       
       switch ((au8Memory_Sequence[u32Memory_SequencePosition / 4] >> (2 * (u32Memory_SequencePosition % 4))) % 4)
