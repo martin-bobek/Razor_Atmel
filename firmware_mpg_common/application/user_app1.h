@@ -28,7 +28,15 @@ Type Definitions
 /**********************************************************************************************************************
 Constants / Definitions
 **********************************************************************************************************************/
-
+#define ANT_CHANNEL_USERAPP                 (u8)0
+#define ANT_SERIAL_LO_USERAPP               (u8)0x54
+#define ANT_SERIAL_HI_USERAPP               (u8)0x70
+#define ANT_DEVICE_TYPE_USERAPP             (u8)1
+#define ANT_TRANSMISSION_TYPE_USERAPP       (u8)1
+#define ANT_CHANNEL_PERIOD_LO_USERAPP       (u8)0x00
+#define ANT_CHANNEL_PERIOD_HI_USERAPP       (u8)0x20
+#define ANT_FREQUENCY_USERAPP               (u8)50
+#define ANT_TX_POWER_USERAPP                RADIO_TX_POWER_0DBM
 
 /**********************************************************************************************************************
 Function Declarations

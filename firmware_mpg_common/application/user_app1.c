@@ -52,7 +52,11 @@ extern volatile u32 G_u32ApplicationFlags;             /* From main.c */
 extern volatile u32 G_u32SystemTime1ms;                /* From board-specific source file */
 extern volatile u32 G_u32SystemTime1s;                 /* From board-specific source file */
 
+extern AntSetupDataType G_stAntSetupData;
 
+extern u32 G_u32AntApiCurrentDataTimeStamp;
+extern AntApplicationMessageType G_eAntApiCurrentMessageClass;
+extern u8 G_au8AntApiCurrentData[ANT_APPLICATION_MESSAGE_BYTES];
 /***********************************************************************************************************************
 Global variable definitions with scope limited to this local application.
 Variable names shall start with "UserApp_" and be declared as static.
@@ -89,8 +93,20 @@ Promises:
 void UserApp1Initialize(void)
 {
   /* If good initialization, set state to Idle */
-  if( 1 )
+  
+  G_stAntSetupData.AntChannel           = ANT_CHANNEL_USERAPP;
+  G_stAntSetupData.AntSerialLo          = ANT_SERIAL_LO_USERAPP;
+  G_stAntSetupData.AntSerialHi          = ANT_SERIAL_HI_USERAPP;
+  G_stAntSetupData.AntDeviceType        = ANT_DEVICE_TYPE_USERAPP;
+  G_stAntSetupData.AntTransmissionType  = ANT_TRANSMISSION_TYPE_USERAPP;
+  G_stAntSetupData.AntChannelPeriodLo   = ANT_CHANNEL_PERIOD_LO_USERAPP;
+  G_stAntSetupData.AntChannelPeriodHi   = ANT_CHANNEL_PERIOD_HI_USERAPP;
+  G_stAntSetupData.AntFrequency         = ANT_FREQUENCY_USERAPP;
+  G_stAntSetupData.AntTxPower           = ANT_TX_POWER_USERAPP;
+  
+  if(AntChannelConfig(ANT_MASTER))
   {
+    AntOpenChannel();
     UserApp1_StateMachine = UserApp1SM_Idle;
   }
   else
@@ -136,7 +152,56 @@ State Machine Function Definitions
 /* Wait for a message to be queued */
 static void UserApp1SM_Idle(void)
 {
+  static u8 au8TestMessage[] = { 0, 0, 0, 0, 0xA5, 0, 0, 0 };
+  u8 au8DataContent[] = "xxxxxxxxxxxxxxxx";
+        
+  if(AntReadData())
+  {
+    au8TestMessage[0] = 0x00;
+    if(IsButtonPressed(BUTTON0))
+    {
+      au8TestMessage[0] = 0xFF;
+    }
+    au8TestMessage[1] = 0x00;
+    if(IsButtonPressed(BUTTON1))
+    {
+      au8TestMessage[1] = 0xFF;
+    }
+    au8TestMessage[2] = 0x00;
+    if(IsButtonPressed(BUTTON2))
+    {
+      au8TestMessage[2] = 0xFF;
+    }
+    au8TestMessage[3] = 0x00;
+    if(IsButtonPressed(BUTTON3))
+    {
+      au8TestMessage[3] = 0xFF;
+    }
     
+    if(G_eAntApiCurrentMessageClass == ANT_DATA)
+    {
+      for (u8 i = 0; i < ANT_DATA_BYTES; i++)
+      {
+        au8DataContent[2 * i]     = HexToASCIICharUpper(G_au8AntApiCurrentData[i] / 16);
+        au8DataContent[2 * i + 1] = HexToASCIICharUpper(G_au8AntApiCurrentData[i] % 16);
+      }
+      
+      LCDMessage(LINE2_START_ADDR, au8DataContent);
+    }
+    else if (G_eAntApiCurrentMessageClass == ANT_TICK)
+    {
+      au8TestMessage[7]++;
+      if (au8TestMessage[7] == 0)
+      {
+        au8TestMessage[6]++;
+        if (au8TestMessage[6] == 0)
+        {
+          au8TestMessage[5]++;
+        }
+      }
+      AntQueueBroadcastMessage(au8TestMessage);
+    }
+  }
 } /* end UserApp1SM_Idle() */
      
 #if 0

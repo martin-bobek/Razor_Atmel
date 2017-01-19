@@ -39,7 +39,7 @@ contraints but must complete execution regardless of success or failure of start
 the 1ms period.
 ***********************************************************************************************************************/
 
-void main(void)
+  void main(void)
 {
   G_u32SystemFlags |= _SYSTEM_INITIALIZING;
 
