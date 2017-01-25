@@ -91,24 +91,23 @@ static RunnerSequence_Type Runner_SequenceType;           /* True indicates curr
 static bool bRunner_ScreenUpdate;                         /* Indicates that contents of screen have changed and LCD needs to be updated */
 static u8 u8Runner_Jump;                                  /* Indicates the character has jumped and length of jump remaining */
 
+#define STICKMAN      "\x01"
+#define SOLID         "\x02"
+#define LOG           "\x03"
+#define UP            "\x04"
+
 CustomChar_t CustomChars[] = {
-  { 0x01, {0x1B, 0x00, 0x0A, 0x0A, 0x00, 0x04, 0x11, 0x0E} }
-}
+  { 0x01, {0x0E, 0x0E, 0x04, 0x1F, 0x04, 0x04, 0x0A, 0x11} },   // Stickman
+  { 0x02, {0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F} },   // Solid Block
+  { 0x03, {0x00, 0x00, 0x00, 0x00, 0x1F, 0x1F, 0x1F, 0x00} },    // Log
+  { 0x04, {0x00, 0x04, 0x0E, 0x15, 0x04, 0x04, 0x00, 0x00} },    // Up
+};
 
 /*
 Tested Change Log:
 
-Adjust cactus spacing, speed and jump length in Runner.
-Adjust log spacing and speed in Frogger.
-Add speed up to Memory Game as game progresses.
-Adjust timing between transition from Memory_Input to Memory_Output.
-Add escape option during Memory Input.
-Make the screen blue for Frogger (water).
-Add Led score system to Frogger and Memory.
-Add jump sounds to Runner.
-Add sounds to Memory Game.
-Add losing sound to GameOver.
-Add sounds to Frogger.
+Added working user character system and changed appropriate characters in games.
+Switched Enter and Score in main menu.
 */
 
 /*
@@ -158,6 +157,7 @@ Promises:
 void UserAppInitialize(void)
 { 
   Game_StateMachine = Game_MainMenu;
+  LCDCharSetup(CustomChars, sizeof(CustomChars)/sizeof(CustomChar_t));
   
   /* If good initialization, set state to Idle */
   if( 1 )
@@ -213,7 +213,7 @@ static void Sound_Service()
 
 static void Game_MainMenu()
 {
-  static u8 strControls[] = "SCORE  \x7F    \x7E  ENTER";
+  static u8 strControls[] = "ENTER  \x7F    \x7E  SCORE";
   static u8 strRunner[] = "       RUNNER       ";
   static u8 strFrogger[] = "      FROGGER       ";
   static u8 strMemory[] = "    MEMORY GAME     ";
@@ -242,7 +242,7 @@ static void Game_MainMenu()
     bFirstEntry = FALSE;
   }
   
-  if (WasButtonPressed(BUTTON3))        /* Go to StartScreen state of the selected games */
+  if (WasButtonPressed(BUTTON0))        /* Go to StartScreen state of the selected games */
   {
     if (CurrentGame == RUNNER)
     {
@@ -264,7 +264,7 @@ static void Game_MainMenu()
     }
     bFirstEntry = TRUE;
   }
-  else if (WasButtonPressed(BUTTON0))        /* Go to HighScore state */
+  else if (WasButtonPressed(BUTTON3))        /* Go to HighScore state */
   {
     Game_StateMachine = Game_HighScore;
     bFirstEntry = TRUE;
@@ -592,23 +592,23 @@ static void Memory_Input()
       {
       case BUTTON0:
         PWMAudioSetFrequency(BUZZER1, C5);
-        LCDMessage(LINE1_START_ADDR, "\x23");
-        LCDMessage(LINE2_START_ADDR, "\x23");
+        LCDMessage(LINE1_START_ADDR, SOLID);
+        LCDMessage(LINE2_START_ADDR, SOLID);
         break;
       case BUTTON1:
         PWMAudioSetFrequency(BUZZER1, D5);
-        LCDMessage(LINE1_START_ADDR + 6, "\x23");
-        LCDMessage(LINE2_START_ADDR + 6, "\x23");
+        LCDMessage(LINE1_START_ADDR + 6, SOLID);
+        LCDMessage(LINE2_START_ADDR + 6, SOLID);
         break;
       case BUTTON2:
         PWMAudioSetFrequency(BUZZER1, E5);
-        LCDMessage(LINE1_START_ADDR + 13, "\x23");
-        LCDMessage(LINE2_START_ADDR + 13, "\x23");
+        LCDMessage(LINE1_START_ADDR + 13, SOLID);
+        LCDMessage(LINE2_START_ADDR + 13, SOLID);
         break;
       case BUTTON3:
         PWMAudioSetFrequency(BUZZER1, G5S);
-        LCDMessage(LINE1_START_ADDR + 19, "\x23");
-        LCDMessage(LINE2_START_ADDR + 19, "\x23");
+        LCDMessage(LINE1_START_ADDR + 19, SOLID);
+        LCDMessage(LINE2_START_ADDR + 19, SOLID);
         break;
       }
       if (i != (au8Memory_Sequence[u32Memory_SequencePosition / 4] >> (2 * (u32Memory_SequencePosition % 4))) % 4)
@@ -695,23 +695,23 @@ static void Memory_Output()
       {
       case 0:
         timed_sound(C5, 300);
-        LCDMessage(LINE1_START_ADDR, "\x23");
-        LCDMessage(LINE2_START_ADDR, "\x23");
+        LCDMessage(LINE1_START_ADDR, SOLID);
+        LCDMessage(LINE2_START_ADDR, SOLID);
         break;
       case 1:
         timed_sound(D5, 300);
-        LCDMessage(LINE1_START_ADDR + 6, "\x23");
-        LCDMessage(LINE2_START_ADDR + 6, "\x23");
+        LCDMessage(LINE1_START_ADDR + 6, SOLID);
+        LCDMessage(LINE2_START_ADDR + 6, SOLID);
         break;
       case 2:
         timed_sound(E5, 300);
-        LCDMessage(LINE1_START_ADDR + 13, "\x23");
-        LCDMessage(LINE2_START_ADDR + 13, "\x23");
+        LCDMessage(LINE1_START_ADDR + 13, SOLID);
+        LCDMessage(LINE2_START_ADDR + 13, SOLID);
         break;
       case 3:
         timed_sound(G5S, 300);
-        LCDMessage(LINE1_START_ADDR + 19, "\x23");
-        LCDMessage(LINE2_START_ADDR + 19, "\x23");
+        LCDMessage(LINE1_START_ADDR + 19, SOLID);
+        LCDMessage(LINE2_START_ADDR + 19, SOLID);
         break;
       }
       u32Memory_SequencePosition++;
@@ -738,7 +738,7 @@ static void Memory_Output()
 static void Frogger_StartScreen()
 {
   static u8 strLine1[] = "START    CONTROLS:  ";
-  static u8 strLine2[] = "\x7F     ^      \x7E   ESC";
+  static u8 strLine2[] = "\x7F     "UP"      \x7E   ESC";
   static bool bFirstEntry = TRUE;
   
   if (bFirstEntry)
@@ -749,7 +749,7 @@ static void Frogger_StartScreen()
     LCDMessage(LINE2_START_ADDR, strLine2);
     
     for (u8 i = 0; i < 20; i++)
-      au8Frogger_strLineA[i] = '=';
+      au8Frogger_strLineA[i] = LOG[0];
     Frogger_LineA = (FroggerLine_Type){ au8Frogger_strLineA, LEFT, 1, LOGS };
     Frogger_LineB = (FroggerLine_Type){ au8Frogger_strLineB, RIGHT, 0, WATER };
     new_line(&Frogger_LineB);
@@ -773,7 +773,7 @@ static void Frogger_StartScreen()
     ButtonAcknowledge(BUTTON2);
     ButtonAcknowledge(BUTTON3);
     LCDMessage(LINE2_START_ADDR, aFrogger_Lines[0]->line_ptr);
-    LCDMessage(LINE2_START_ADDR + 10, "\xAB");
+    LCDMessage(LINE2_START_ADDR + 10, STICKMAN);
     LCDMessage(LINE1_START_ADDR, aFrogger_Lines[1]->line_ptr);
     LedOff(LCD_GREEN);
     LedOff(LCD_RED);
@@ -886,7 +886,7 @@ static void Frogger_Running()
     }
     else
     {
-      LCDMessage(((u8Frogger_Forward == 0) ? LINE2_START_ADDR : LINE1_START_ADDR) + s8Frogger_Position, "\xAB");
+      LCDMessage(((u8Frogger_Forward == 0) ? LINE2_START_ADDR : LINE1_START_ADDR) + s8Frogger_Position, STICKMAN);
     }
     bFrogger_ScreenUpdate = FALSE;
   }
@@ -919,7 +919,7 @@ static void new_line(FroggerLine_Type *line)
     }
     if (line->sequence_type == LOGS)
     {
-      line->line_ptr[i] = '=';
+      line->line_ptr[i] = LOG[0];
     }
     else
     {
@@ -958,7 +958,7 @@ static void shift_line(FroggerLine_Type *line)
   }
   if (line->sequence_type == LOGS)
   {
-    line->line_ptr[new_index] = '=';
+    line->line_ptr[new_index] = LOG[0];
   }
   else
   {
@@ -1060,7 +1060,7 @@ static void Runner_Running()
       LCDMessage(LINE1_START_ADDR + 1, " "); /* Clears stick man if in upper row */
       if (au8Runner_Cactuses[1] == ' ')
       {
-        LCDMessage(LINE2_START_ADDR + 1, "\xAB");
+        LCDMessage(LINE2_START_ADDR + 1, STICKMAN);
       }
       else
       {
@@ -1072,7 +1072,7 @@ static void Runner_Running()
     }
     else
     {
-      LCDMessage(LINE1_START_ADDR + 1, "\xAB");
+      LCDMessage(LINE1_START_ADDR + 1, STICKMAN);
     }
     
     bRunner_ScreenUpdate = FALSE;

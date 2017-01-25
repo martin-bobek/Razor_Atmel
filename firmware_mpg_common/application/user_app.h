@@ -23,8 +23,6 @@ Header file for yournewtaskname.c
 /**********************************************************************************************************************
 Type Definitions
 **********************************************************************************************************************/
-#define BITMAP_ROWS      (u8)8
-
 typedef enum { RUNNER, FROGGER, MEMORY } Game_Type;
 typedef enum { CACTUS, GROUND } RunnerSequence_Type;
 typedef enum { WATER, LOGS } FroggerSequence_Type;
@@ -35,8 +33,6 @@ typedef struct {
   u8 sequence_length;
   FroggerSequence_Type sequence_type; } FroggerLine_Type;
 typedef enum { PAUSE, DISPLAY } MemoryOutput_Type;
-
-typedef { u8 address, u8 Bitmap[BITMAP_ROWS] } CustomChar_t;
 
 /**********************************************************************************************************************
 Constants / Definitions

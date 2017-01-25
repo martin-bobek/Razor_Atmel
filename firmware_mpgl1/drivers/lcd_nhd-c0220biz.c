@@ -198,8 +198,11 @@ void LCDCharSetup(CustomChar_t *chars, u8 size)
   for (u8 i = 0; i < size; i++)
   {
     LCDCommand(LCD_FUNCTION_CMD);
-    LCDCommand(
+    LCDCommand(LCD_CGRAM_ADDR | (chars[i].address * BITMAP_ROWS));
+    TWI0WriteByte(LCD_ADDRESS, LCD_CONTROL_DATA, NO_STOP);
+    TWI0WriteData(LCD_ADDRESS, BITMAP_ROWS, chars[i].bitmap, STOP);
   }
+  LCDCommand(LCD_CLEAR_CMD);
 }
 
 

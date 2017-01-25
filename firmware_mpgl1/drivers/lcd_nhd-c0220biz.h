@@ -94,6 +94,11 @@ space can be used for scrolling displays.
 #define   LINE1_END_ABSOLUTE  (u8)0x27    /* Constant for last character RAM address in LINE1 */
 #define   LINE2_END_ABSOLUTE  (u8)0x67    /* Constant for last character RAM address in LINE2 */
 
+#define   LCD_CGRAM_ADDR      (u8)0x40    /* Base address of the CGRAM */
+#define   BITMAP_ROWS         (u8)8
+
+typedef struct { u8 address; u8 bitmap[BITMAP_ROWS]; } CustomChar_t;
+
 /**********************************************************************************************************************
 * Function Declarations
 **********************************************************************************************************************/
@@ -105,7 +110,7 @@ void LCDCommand(u8 u8Command_);
 void LCDClearChars(u8 u8Address_, u8 u8CharactersToClear_);
 void LCDMessage(u8 u8Address_, u8 *u8Message_);
 
-void LCDCharSetup(CustomChar_t *chars, size_t size);
+void LCDCharSetup(CustomChar_t *chars, u8 size);
 
 /*--------------------------------------------------------------------------------------------------------------------*/
 /* Protected functions */
