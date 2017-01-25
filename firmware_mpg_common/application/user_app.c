@@ -91,6 +91,9 @@ static RunnerSequence_Type Runner_SequenceType;           /* True indicates curr
 static bool bRunner_ScreenUpdate;                         /* Indicates that contents of screen have changed and LCD needs to be updated */
 static u8 u8Runner_Jump;                                  /* Indicates the character has jumped and length of jump remaining */
 
+CustomChar_t CustomChars[] = {
+  { 0x01, {0x1B, 0x00, 0x0A, 0x0A, 0x00, 0x04, 0x11, 0x0E} }
+}
 
 /*
 Tested Change Log:

@@ -193,6 +193,15 @@ void LCDClearChars(u8 u8Address_, u8 u8CharactersToClear_)
       	
 } /* end LCDClearChars() */
 
+void LCDCharSetup(CustomChar_t *chars, u8 size)
+{
+  for (u8 i = 0; i < size; i++)
+  {
+    LCDCommand(LCD_FUNCTION_CMD);
+    LCDCommand(
+  }
+}
+
 
 /*--------------------------------------------------------------------------------------------------------------------*/
 /* Protected Functions */

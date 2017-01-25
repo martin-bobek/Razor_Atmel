@@ -105,6 +105,7 @@ void LCDCommand(u8 u8Command_);
 void LCDClearChars(u8 u8Address_, u8 u8CharactersToClear_);
 void LCDMessage(u8 u8Address_, u8 *u8Message_);
 
+void LCDCharSetup(CustomChar_t *chars, size_t size);
 
 /*--------------------------------------------------------------------------------------------------------------------*/
 /* Protected functions */
