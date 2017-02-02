@@ -91,7 +91,7 @@ void UserApp1Initialize(void)
   /* If good initialization, set state to Idle */
   if( 1 )
   {
-    UserApp1_StateMachine = UserApp1SM_Idle;
+    UserApp1_StateMachine = State_1;
   }
   else
   {
@@ -126,6 +126,57 @@ void UserApp1RunActiveState(void)
 /*--------------------------------------------------------------------------------------------------------------------*/
 /* Private functions                                                                                                  */
 /*--------------------------------------------------------------------------------------------------------------------*/
+static void State_1(void)
+{
+  LedOn(RED);
+  if (WasButtonPressed(BUTTON0))
+  {
+    ButtonAcknowledge(BUTTON1);
+    UserApp1_StateMachine = State_2;
+    LedOff(RED);
+  }
+}
+
+static void State_2(void)
+{
+  LedOn(GREEN);
+  if (WasButtonPressed(BUTTON1))
+  {
+    ButtonAcknowledge(BUTTON2);
+    UserApp1_StateMachine = State_3;
+    LedOff(GREEN);
+  }
+}
+
+static void State_3(void)
+{
+  LedOn(BLUE);
+  if (WasButtonPressed(BUTTON2))
+  {
+    ButtonAcknowledge(BUTTON0);
+    ButtonAcknowledge(BUTTON3);
+    UserApp1_StateMachine = State_4;
+    LedOff(BLUE);
+  }
+}
+
+static void State_4(void)
+{
+  LedOn(YELLOW);
+  if (WasButtonPressed(BUTTON0))
+  {
+    ButtonAcknowledge(BUTTON1);
+    UserApp1_StateMachine = State_1;
+    LedOff(YELLOW);
+  }
+  if (WasButtonPressed(BUTTON3))
+  {
+    ButtonAcknowledge(BUTTON0);
+    UserApp1_StateMachine = State_1;
+    LedOff(YELLOW);
+  }
+}
+
 
 
 /**********************************************************************************************************************

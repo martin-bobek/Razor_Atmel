@@ -54,7 +54,26 @@ void UserApp1RunActiveState(void);
 /***********************************************************************************************************************
 State Machine Declarations
 ***********************************************************************************************************************/
-static void UserApp1SM_Idle(void);    
+static void State_1(void);
+/*
+REQUIRES:
+  BUTTON0 cleared
+*/
+static void State_2(void);
+/*
+REQUIRES:
+  BUTTON1 cleared
+*/
+static void State_3(void);
+/*
+REQUIRES:
+  BUTTON2 cleared
+*/
+static void State_4(void);
+/*
+REQUIRES:
+  BUTTON0, BUTTON3 cleared
+*/
 
 static void UserApp1SM_Error(void);         
 static void UserApp1SM_FailedInit(void);        
