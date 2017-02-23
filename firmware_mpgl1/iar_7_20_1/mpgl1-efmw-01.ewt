@@ -232,6 +232,9 @@
         <name>$PROJ_DIR$\..\..\firmware_mpg_common\drivers\interrupts.h</name>
       </file>
       <file>
+        <name>$PROJ_DIR$\..\drivers\Keyboard.h</name>
+      </file>
+      <file>
         <name>$PROJ_DIR$\..\drivers\lcd_nhd-c0220biz.h</name>
       </file>
       <file>
@@ -275,6 +278,9 @@
       </file>
       <file>
         <name>$PROJ_DIR$\..\..\firmware_mpg_common\drivers\interrupts.c</name>
+      </file>
+      <file>
+        <name>$PROJ_DIR$\..\drivers\Keyboard.c</name>
       </file>
       <file>
         <name>$PROJ_DIR$\..\drivers\lcd_nhd-c0220biz.c</name>

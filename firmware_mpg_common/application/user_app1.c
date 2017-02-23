@@ -52,7 +52,6 @@ extern volatile u32 G_u32ApplicationFlags;             /* From main.c */
 extern volatile u32 G_u32SystemTime1ms;                /* From board-specific source file */
 extern volatile u32 G_u32SystemTime1s;                 /* From board-specific source file */
 
-
 /***********************************************************************************************************************
 Global variable definitions with scope limited to this local application.
 Variable names shall start with "UserApp_" and be declared as static.
@@ -88,16 +87,18 @@ Promises:
 */
 void UserApp1Initialize(void)
 {
+  LCDCommand(LCD_CLEAR_CMD);
+  UserApp1_StateMachine = State_1;
   /* If good initialization, set state to Idle */
-  if( 1 )
+  /*if( 1 )
   {
     UserApp1_StateMachine = State_1;
   }
   else
   {
-    /* The task isn't properly initialized, so shut it down and don't run */
-    UserApp1_StateMachine = UserApp1SM_FailedInit;
-  }
+    The task isn't properly initialized, so shut it down and don't run */
+    //UserApp1_StateMachine = UserApp1SM_FailedInit;
+  //}
 
 } /* end UserApp1Initialize() */
 
@@ -128,56 +129,12 @@ void UserApp1RunActiveState(void)
 /*--------------------------------------------------------------------------------------------------------------------*/
 static void State_1(void)
 {
-  LedOn(RED);
-  if (WasButtonPressed(BUTTON0))
+  static u8 cStr[2] = "\0";
+  while (cStr[0] = KeyboardData())
   {
-    ButtonAcknowledge(BUTTON1);
-    UserApp1_StateMachine = State_2;
-    LedOff(RED);
+    DebugPrintf(cStr);
   }
 }
-
-static void State_2(void)
-{
-  LedOn(GREEN);
-  if (WasButtonPressed(BUTTON1))
-  {
-    ButtonAcknowledge(BUTTON2);
-    UserApp1_StateMachine = State_3;
-    LedOff(GREEN);
-  }
-}
-
-static void State_3(void)
-{
-  LedOn(BLUE);
-  if (WasButtonPressed(BUTTON2))
-  {
-    ButtonAcknowledge(BUTTON0);
-    ButtonAcknowledge(BUTTON3);
-    UserApp1_StateMachine = State_4;
-    LedOff(BLUE);
-  }
-}
-
-static void State_4(void)
-{
-  LedOn(YELLOW);
-  if (WasButtonPressed(BUTTON0))
-  {
-    ButtonAcknowledge(BUTTON1);
-    UserApp1_StateMachine = State_1;
-    LedOff(YELLOW);
-  }
-  if (WasButtonPressed(BUTTON3))
-  {
-    ButtonAcknowledge(BUTTON0);
-    UserApp1_StateMachine = State_1;
-    LedOff(YELLOW);
-  }
-}
-
-
 
 /**********************************************************************************************************************
 State Machine Function Definitions

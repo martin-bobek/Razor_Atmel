@@ -66,6 +66,7 @@ void main(void)
   ButtonInitialize();
   AntInitialize();
   SdCardInitialize();
+  KeyboardInitialize();
 
   /* Application initialization */
   UserApp1Initialize();
@@ -85,7 +86,7 @@ void main(void)
     LedUpdate();
     ButtonRunActiveState();
     UartRunActiveState();
-    TimerRunActiveState(); 
+    TimerRunActiveState();
     SspRunActiveState();
     TWIRunActiveState();
     MessagingRunActiveState();
@@ -93,6 +94,7 @@ void main(void)
     LcdRunActiveState();
     AntRunActiveState();
     SdCardRunActiveState();
+    KeyboardRunActiveState();
 
     /* Applications */
     UserApp1RunActiveState();

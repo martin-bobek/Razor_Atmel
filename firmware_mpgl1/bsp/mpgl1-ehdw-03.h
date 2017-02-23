@@ -460,7 +460,7 @@ counter must be set at 1280. */
 0: No effect
 1: Pin is controlled by PIO
 */
-#define PIOA_PER_INIT (u32)0x84030007
+#define PIOA_PER_INIT (u32)0x8403a007
 /* 
     31 [1] PA_31_HEARTBEAT PIO control enabled
     30 [0] PA_30_AN_DEMO PIO control not enabled
@@ -482,9 +482,9 @@ counter must be set at 1280. */
     17 [1] PA_17_BUTTON0 PIO control enabled
     16 [1] PA_16_BLADE_CS PIO control enabled
 
-    15 [0] PA_15_BLADE_SCK PIO control not enabled
+    15 [1] PA_15_BLADE_SCK PIO control not enabled
     14 [0] PA_14_BLADE_MOSI PIO control not enabled
-    13 [0] PA_13_BLADE_MISO PIO control not enabled
+    13 [1] PA_13_BLADE_MISO PIO control not enabled
     12 [0] PA_12_BLADE_UPOMI PIO control not enabled
 
     11 [0] PA_11_BLADE_UPIMO PIO control not enabled
@@ -551,7 +551,7 @@ counter must be set at 1280. */
 0: No effect
 1: Pin is controlled by corresponding peripheral
 */
-#define PIOA_PDR_INIT (u32)0x7BFCFFF8
+#define PIOA_PDR_INIT (u32)0x7BFC5FF8
 /* 
     31 [0] PA_31_HEARTBEAT not controlled by peripheral
     30 [1] PA_30_AN_DEMO controlled by peripheral
@@ -573,9 +573,9 @@ counter must be set at 1280. */
     17 [0] PA_17_BUTTON0 not controlled by peripheral
     16 [0] PA_16_BLADE_CS not controlled by peripheral
 
-    15 [1] PA_15_BLADE_SCK controlled by peripheral
+    15 [0] PA_15_BLADE_SCK controlled by peripheral
     14 [1] PA_14_BLADE_MOSI controlled by peripheral
-    13 [1] PA_13_BLADE_MISO controlled by peripheral
+    13 [0] PA_13_BLADE_MISO controlled by peripheral
     12 [1] PA_12_BLADE_UPOMI controlled by peripheral
 
     11 [1] PA_11_BLADE_UPIMO controlled by peripheral
@@ -642,7 +642,7 @@ Configures the pin as an output or input.
 0: No effect
 1: Enables the output on the I/O line
 */
-#define PIOA_OER_INIT (u32)0xBF55D7F9
+#define PIOA_OER_INIT (u32)0xBF5557F9
 /* 
     31 [1] PA_31_HEARTBEAT output enabled
     30 [0] PA_30_AN_DEMO input
@@ -664,7 +664,7 @@ Configures the pin as an output or input.
     17 [0] PA_17_BUTTON0 input
     16 [1] PA_16_BLADE_CS output enabled
 
-    15 [1] PA_15_BLADE_SCK output enabled
+    15 [0] PA_15_BLADE_SCK output enabled
     14 [1] PA_14_BLADE_MOSI output enabled
     13 [0] PA_13_BLADE_MISO input
     12 [1] PA_12_BLADE_UPOMI output enabled
@@ -732,7 +732,7 @@ Configures the pin as an output or input.
 0: No effect
 1: Disables the output on the I/O line.
 */
-#define PIOA_ODR_INIT (u32)0x40AA2806
+#define PIOA_ODR_INIT (u32)0x40AAa806
 /* 
     31 [0] PA_31_HEARTBEAT output 
     30 [1] PA_30_AN_DEMO input
@@ -754,7 +754,7 @@ Configures the pin as an output or input.
     17 [1] PA_17_BUTTON0 input
     16 [0] PA_16_BLADE_CS output 
 
-    15 [0] PA_15_BLADE_SCK output 
+    15 [1] PA_15_BLADE_SCK output 
     14 [0] PA_14_BLADE_MOSI output 
     13 [1] PA_13_BLADE_MISO input
     12 [0] PA_12_BLADE_UPOMI output 
@@ -1003,7 +1003,7 @@ Default start-up IO values are held here.
 0: No effect
 1: Sets the data to be driven on the I/O line.
 */
-#define PIOA_SODR_INIT (u32)0x88010000
+#define PIOA_SODR_INIT (u32)0x8801c000
 /* 
     31 [1] PA_31_HEARTBEAT output high 
     30 [0] PA_30_AN_DEMO N/A
@@ -1025,9 +1025,9 @@ Default start-up IO values are held here.
     17 [0] PA_17_BUTTON0 N/A
     16 [1] PA_16_BLADE_CS output high
 
-    15 [0] PA_15_BLADE_SCK N/A
+    15 [1] PA_15_BLADE_SCK N/A
     14 [0] PA_14_BLADE_MOSI N/A
-    13 [0] PA_13_BLADE_MISO N/A
+    13 [1] PA_13_BLADE_MISO N/A
     12 [0] PA_12_BLADE_UPOMI N/A
 
     11 [0] PA_11_BLADE_UPIMO N/A
@@ -1184,7 +1184,7 @@ Initial output values are stored here.
 0: No effect
 1: Enables Multi Drive on the I/O line.
 */
-#define PIOA_MDER_INIT (u32)0x04000600
+#define PIOA_MDER_INIT (u32)0x0400a600
 /* 
     31 [0] PA_31_HEARTBEAT
     30 [0] PA_30_AN_DEMO
@@ -1206,9 +1206,9 @@ Initial output values are stored here.
     17 [0] PA_17_BUTTON0
     16 [0] PA_16_BLADE_CS
 
-    15 [0] PA_15_BLADE_SCK
+    15 [1] PA_15_BLADE_SCK
     14 [0] PA_14_BLADE_MOSI
-    13 [0] PA_13_BLADE_MISO
+    13 [1] PA_13_BLADE_MISO
     12 [0] PA_12_BLADE_UPOMI
 
     11 [0] PA_11_BLADE_UPIMO
@@ -1274,7 +1274,7 @@ Initial output values are stored here.
 0: No effect
 1: Disables Multi Drive on the I/O line.
 */
-#define PIOA_MDDR_INIT (u32)0xFBFFF9FF
+#define PIOA_MDDR_INIT (u32)0xFBFF59FF
 /* 
     31 [1] PA_31_HEARTBEAT not open drain
     30 [1] PA_30_AN_DEMO not open drain
@@ -1296,9 +1296,9 @@ Initial output values are stored here.
     17 [1] PA_17_BUTTON0 not open drain
     16 [1] PA_16_BLADE_CS not open drain
 
-    15 [1] PA_15_BLADE_SCK not open drain
+    15 [0] PA_15_BLADE_SCK not open drain
     14 [1] PA_14_BLADE_MOSI not open drain
-    13 [1] PA_13_BLADE_MISO not open drain
+    13 [0] PA_13_BLADE_MISO not open drain
     12 [1] PA_12_BLADE_UPOMI not open drain
 
     11 [1] PA_11_BLADE_UPIMO not open drain
@@ -1364,7 +1364,7 @@ Initial output values are stored here.
 0: No effect
 1: Disables the pull up resistor on the I/O line.
 */
-#define PIOA_PPUDR_INIT (u32)0xFFFFFFFE
+#define PIOA_PPUDR_INIT (u32)0xFFFF5FFE
 /* 
     31 [1] PA_31_HEARTBEAT no pull-up
     30 [1] PA_30_AN_DEMO no pull-up
@@ -1386,9 +1386,9 @@ Initial output values are stored here.
     17 [1] PA_17_BUTTON0 no pull-up
     16 [1] PA_16_BLADE_CS no pull-up
 
-    15 [1] PA_15_BLADE_SCK no pull-up
+    15 [0] PA_15_BLADE_SCK no pull-up
     14 [1] PA_14_BLADE_MOSI no pull-up
-    13 [1] PA_13_BLADE_MISO no pull-up
+    13 [0] PA_13_BLADE_MISO no pull-up
     12 [1] PA_12_BLADE_UPOMI no pull-up
 
     11 [1] PA_11_BLADE_UPIMO no pull-up
@@ -1454,7 +1454,7 @@ Initial output values are stored here.
 0: No effect
 1: Enables the pull-up resistor on the selected pin
 */
-#define PIOA_PPUER_INIT (u32)0x00000001
+#define PIOA_PPUER_INIT (u32)0x0000a001
 /*
     31 [0] PA_31_HEARTBEAT no pull-up
     30 [0] PA_30_AN_DEMO no pull-up
@@ -1476,9 +1476,9 @@ Initial output values are stored here.
     17 [0] PA_17_BUTTON0 no pull-up
     16 [0] PA_16_BLADE_CS no pull-up
 
-    15 [0] PA_15_BLADE_SCK no pull-up
+    15 [1] PA_15_BLADE_SCK no pull-up
     14 [0] PA_14_BLADE_MOSI no pull-up
-    13 [0] PA_13_BLADE_MISO no pull-up
+    13 [1] PA_13_BLADE_MISO no pull-up
     12 [0] PA_12_BLADE_UPOMI no pull-up
 
     11 [0] PA_11_BLADE_UPIMO no pull-up

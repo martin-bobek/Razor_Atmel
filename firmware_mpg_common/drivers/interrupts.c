@@ -157,7 +157,17 @@ void SysTick_Handler(void)
     
 } /* end SysTickHandler(void) */
 
+void PIOA_IrqHandler(void)
+{
+  u32 u32InterruptSources = AT91C_BASE_PIOA->PIO_ISR;
+  
+  if (u32InterruptSources & PS2_CLOCK_MSK)
+  {
+    PS2_Handler();
+  }
+}
 
+#if 0
 /*----------------------------------------------------------------------------------------------------------------------
 ISR: PIOA_IrqHandler
 
@@ -173,6 +183,7 @@ Promises:
   - Buttons: sets the active button's debouncing flag, clears the interrupt
     and initializes the button's debounce timer.
 */
+
 void PIOA_IrqHandler(void)
 {
   u32 u32GPIOInterruptSources, u32ButtonInterrupts, u32CurrentButtonLocation;
@@ -211,6 +222,7 @@ void PIOA_IrqHandler(void)
   
 } /* end PIOA_IrqHandler() */
 
+#endif
 
 /*----------------------------------------------------------------------------------------------------------------------
 ISR: PIOB_IrqHandler
