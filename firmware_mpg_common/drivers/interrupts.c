@@ -157,6 +157,8 @@ void SysTick_Handler(void)
     
 } /* end SysTickHandler(void) */
 
+extern u8 GMessage;
+
 void PIOA_IrqHandler(void)
 {
   u32 u32InterruptSources = AT91C_BASE_PIOA->PIO_ISR;

@@ -338,9 +338,9 @@ All unused interrupt sources will be set to priority 31.
     25 [0] "
     24 [0] "
 
-    23 [0] (22) // Timer Counter 0 priority 0
-    22 [0] "
-    21 [0] "
+    23 [0] (22) // Timer Counter 0 priority 6
+    22 [1] "
+    21 [1] "
     20 [0] "
 
     19 [0] Unimplemented

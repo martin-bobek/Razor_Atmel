@@ -129,9 +129,29 @@ void UserApp1RunActiveState(void)
 /*--------------------------------------------------------------------------------------------------------------------*/
 static void State_1(void)
 {
-  static u8 cStr[2] = "\0";
+  //static u8 cStr[5] = "  \r\n";
+  //u8 character;
+  static u8 cStr[4] = "";
   while (cStr[0] = KeyboardData())
   {
+    //cStr[1] = HexToASCIICharUpper(character & 0xF);
+    //cStr[0] = HexToASCIICharUpper(character >> 4);
+    if (cStr[0] == ENT_)
+    {
+      cStr[0] = '\r';
+      cStr[1] = '\n';
+      cStr[2] = '\0';
+    }
+    else if (cStr[0] == BKS_)
+    {
+      cStr[0] = '\b';
+      cStr[1] = ' ';
+      cStr[2] = '\b';
+    }
+    else if (cStr[0] > BKS_)
+      continue;
+    else
+      cStr[1] = '\0';
     DebugPrintf(cStr);
   }
 }
