@@ -134,8 +134,6 @@ static void State_1(void)
   static u8 cStr[4] = "";
   while (cStr[0] = KeyboardData())
   {
-    //cStr[1] = HexToASCIICharUpper(character & 0xF);
-    //cStr[0] = HexToASCIICharUpper(character >> 4);
     if (cStr[0] == ENT_)
     {
       cStr[0] = '\r';

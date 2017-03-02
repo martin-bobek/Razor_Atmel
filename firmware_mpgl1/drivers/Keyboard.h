@@ -58,7 +58,6 @@ typedef enum {
 #define MOD_LSHIFT            (u8)(1 << 3)
 #define MOD_RSHIFT            (u8)(1 << 4)
 #define MOD_SHIFT             (u8)(1 << 5)
-#define MOD_SCL_UPPER         (u8)(1 << 6)
 
 #define PS2_RBUFFER_SIZE      4
 #define PS2_TBUFFER_SIZE      4
@@ -69,8 +68,8 @@ extern volatile fnCode_type PS2_Handler;
 
 /* Private Types */
 typedef enum { NOMOD, BRK, ALT0, ALT1, ALT0BRK } PS2Alt_t;
-//typedef enum { NO_UPDATE, CMD_PEND, CMD_SENT, DATA_PEND, DATA_SENT } LockUpdateState_t;
-//typedef enum { NO_RESEND, REQ_PEND, REQ_SENT } ResendState_t;
+typedef enum { NO_UPDATE, CMD_PEND, CMD_SENT, DATA_SENT, ABORT } LockUpdateState_t;
+//typedef enum { NO_RESEND, REQ_PEND } DResendState_t;
 
 /* Interrupt Handlers */
 void TC0_IrqHandler(void);
@@ -94,9 +93,11 @@ void PS2Parity_TransmitState(void);
 void PS2Stop_TransmitState(void);
 void PS2Acknowledge_TransmitState(void);
 
+void PS2Empty_State(void);
+
 /* Private Functions */
 static void PushChar(u8 c);
-static void PushLockUpdate(void);
-static void ComputeUpper(void);
+//static void PushLockUpdate(void);
+static void ComputeUpdate(void);
 
 #endif

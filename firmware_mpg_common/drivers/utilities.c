@@ -45,7 +45,12 @@ extern volatile u32 G_u32ApplicationFlags;     /* From main.c */
 Global variable definitions with scope limited to this local application.
 Variable names shall start with "Util_" and be declared as static.
 ***********************************************************************************************************************/
-
+u8 random(void)
+{
+  static u8 LFSR = 0xA5;
+  LFSR = (LFSR << 1) | (((LFSR >> 7) ^ (LFSR >> 7) ^ (LFSR >> 5) ^ (LFSR >> 4) ^ (LFSR >> 3)) & 1);
+  return LFSR;
+}
 
 /***********************************************************************************************************************
 Function Definitions
