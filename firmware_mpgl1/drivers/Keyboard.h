@@ -63,6 +63,9 @@ typedef enum {
 #define PS2_TBUFFER_SIZE      4
 #define CHAR_BUFFER_SIZE      16
 
+#define ACK_BYTE              0xFA
+#define RESEND_BYTE           0xFE
+
 /* Protected Globals */
 extern volatile fnCode_type PS2_Handler;
 

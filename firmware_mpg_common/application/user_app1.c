@@ -130,8 +130,26 @@ void UserApp1RunActiveState(void)
 static void State_1(void)
 {
   //static u8 cStr[5] = "  \r\n";
-  //u8 character;
-  static u8 cStr[4] = "";
+  static u8 cStr[2] = {0};
+  static u8 col = 0;
+  static u8 strLine[20] = {0};
+  while (*cStr = KeyboardData())
+  {
+    if (*cStr >= ENT_)
+    {
+      continue;
+    }
+    strLine[col] = *cStr;
+    LCDMessage(LINE2_START_ADDR + col, cStr);
+    col++;
+    if (col == 20)
+    {
+      col = 0;
+      LCDCommand(LCD_CLEAR_CMD);
+      LCDMessage(LINE1_START_ADDR, strLine);
+    }
+  }
+  /*static u8 cStr[4] = "";
   while (cStr[0] = KeyboardData())
   {
     if (cStr[0] == ENT_)
@@ -151,7 +169,7 @@ static void State_1(void)
     else
       cStr[1] = '\0';
     DebugPrintf(cStr);
-  }
+  }*/
 }
 
 /**********************************************************************************************************************
