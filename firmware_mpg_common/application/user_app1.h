@@ -28,7 +28,17 @@ Type Definitions
 /**********************************************************************************************************************
 Constants / Definitions
 **********************************************************************************************************************/
+#define TIMEOUT_VALUE                       (u32)5000
 
+#define ANT_CHANNEL_USERAPP                 (u8)0
+#define ANT_SERIAL_LO_USERAPP               (u8)0
+#define ANT_SERIAL_HI_USERAPP               (u8)0
+#define ANT_DEVICE_TYPE_USERAPP             (u8)0
+#define ANT_TRANSMISSION_TYPE_USERAPP       (u8)0
+#define ANT_CHANNEL_PERIOD_LO_USERAPP       (u8)0x00
+#define ANT_CHANNEL_PERIOD_HI_USERAPP       (u8)0x20
+#define ANT_FREQUENCY_USERAPP               (u8)50
+#define ANT_TX_POWER_USERAPP                RADIO_TX_POWER_0DBM
 
 /**********************************************************************************************************************
 Function Declarations
@@ -49,32 +59,19 @@ void UserApp1RunActiveState(void);
 /*--------------------------------------------------------------------------------------------------------------------*/
 /* Private functions                                                                                                  */
 /*--------------------------------------------------------------------------------------------------------------------*/
-
+static void KeyboardService(void);
 
 /***********************************************************************************************************************
 State Machine Declarations
-***********************************************************************************************************************/
-static void State_1(void);
-/*
-REQUIRES:
-  BUTTON0 cleared
-*/
-static void State_2(void);
-/*
-REQUIRES:
-  BUTTON1 cleared
-*/
-static void State_3(void);
-/*
-REQUIRES:
-  BUTTON2 cleared
-*/
-static void State_4(void);
-/*
-REQUIRES:
-  BUTTON0, BUTTON3 cleared
-*/
+***********************************************************************************************************************/\
+static void UserApp1SM_Idle(void);
+static void UserApp1SM_WaitChannelOpen(void);
+static void UserApp1SM_ChannelOpen(void);
+static void UserApp1SM_WaitChannelClose(void);
+static void UserApp1SM_Error(void);         
+static void UserApp1SM_FailedInit(void);        
 
+static void UserApp1SM_Idle(void);
 static void UserApp1SM_Error(void);         
 static void UserApp1SM_FailedInit(void);        
 

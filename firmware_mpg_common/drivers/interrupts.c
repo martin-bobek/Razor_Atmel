@@ -161,12 +161,41 @@ extern u8 GMessage;
 
 void PIOA_IrqHandler(void)
 {
-  u32 u32InterruptSources = AT91C_BASE_PIOA->PIO_ISR;
+  u32 u32GPIOInterruptSources, u32ButtonInterrupts, u32CurrentButtonLocation;
+
+  /* Grab a snapshot of the current PORTA status flags (clears all flags) */
+  u32GPIOInterruptSources  = AT91C_BASE_PIOA->PIO_ISR;
+
+  /******** DO NOT set a breakpoint before this line of the ISR because the debugger
+  will "read" PIO_ISR and clear the flags. ******/
   
-  if (u32InterruptSources & PS2_CLOCK_MSK)
+  /* Examine button interrupts */
+  u32ButtonInterrupts = u32GPIOInterruptSources & GPIOA_BUTTONS;
+  
+  /* Check if any port A buttons interrupted */
+  
+  if (u32GPIOInterruptSources & PS2_CLOCK_MSK)
   {
     PS2_Handler();
   }
+  if(u32ButtonInterrupts)
+  {
+    /* Parse through all the buttons to find those that have interrupted */
+    for(u8 i = 0; i < TOTAL_BUTTONS; i++)
+    {
+      /* Get the bit position of the current button and mask against set interrupts */  
+      u32CurrentButtonLocation = GetButtonBitLocation(i, BUTTON_PORTA);
+      if(u32ButtonInterrupts & u32CurrentButtonLocation)
+      {
+        /* Button has interrupted: disable the button's interrupt and start the button's debounce timer */ 
+        AT91C_BASE_PIOA->PIO_IDR |= u32CurrentButtonLocation;
+
+        /* Initialize the button's debouncing information */
+        G_abButtonDebounceActive[i] = TRUE;
+        G_au32ButtonDebounceTimeStart[i] = G_u32SystemTime1ms;
+      }
+    }
+  } /* end button interrupt checking */
 }
 
 #if 0
