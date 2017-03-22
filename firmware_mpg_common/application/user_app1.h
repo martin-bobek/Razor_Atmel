@@ -33,10 +33,10 @@ Constants / Definitions
 #define ANT_CHANNEL_USERAPP                 (u8)0
 #define ANT_SERIAL_LO_USERAPP               (u8)0
 #define ANT_SERIAL_HI_USERAPP               (u8)0
-#define ANT_DEVICE_TYPE_USERAPP             (u8)0
-#define ANT_TRANSMISSION_TYPE_USERAPP       (u8)0
-#define ANT_CHANNEL_PERIOD_LO_USERAPP       (u8)0x00
-#define ANT_CHANNEL_PERIOD_HI_USERAPP       (u8)0x20
+#define ANT_DEVICE_TYPE_USERAPP             (u8)1
+#define ANT_TRANSMISSION_TYPE_USERAPP       (u8)1
+#define ANT_CHANNEL_PERIOD_LO_USERAPP       (u8)0x31
+#define ANT_CHANNEL_PERIOD_HI_USERAPP       (u8)0x0d
 #define ANT_FREQUENCY_USERAPP               (u8)50
 #define ANT_TX_POWER_USERAPP                RADIO_TX_POWER_0DBM
 
@@ -63,15 +63,16 @@ static void KeyboardService(void);
 
 /***********************************************************************************************************************
 State Machine Declarations
-***********************************************************************************************************************/\
-static void UserApp1SM_Idle(void);
+***********************************************************************************************************************/
+static void UserApp1SM_SelectANT(void);
+static void UserApp1SM_Master(void);
+static void UserApp1SM_SlaveIdle(void);
 static void UserApp1SM_WaitChannelOpen(void);
 static void UserApp1SM_ChannelOpen(void);
 static void UserApp1SM_WaitChannelClose(void);
 static void UserApp1SM_Error(void);         
 static void UserApp1SM_FailedInit(void);        
 
-static void UserApp1SM_Idle(void);
 static void UserApp1SM_Error(void);         
 static void UserApp1SM_FailedInit(void);        
 

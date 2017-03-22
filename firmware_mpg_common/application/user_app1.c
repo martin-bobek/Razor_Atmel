@@ -65,6 +65,9 @@ Variable names shall start with "UserApp_" and be declared as static.
 static fnCode_type UserApp1_StateMachine;            /* The state machine function pointer */
 static u32 UserApp1_u32Timeout;                      /* Timeout counter used across states */
 
+static bool SendRequest = FALSE;
+static u8 TextMessage[21] = "";
+
 static u32 UserApp1_u32DataMsgCount = 0;
 static u32 UserApp1_u32TickMsgCount = 0;
 
@@ -74,6 +77,7 @@ static u8 au8DataContent[] = "xxxxxxxxxxxxxxxx";
 static u8 au8LastAntData[ANT_APPLICATION_MESSAGE_BYTES] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 static u8 au8TestMessage[] = {0, 0, 0, 0, 0xA5, 0, 0, 0};
 bool bGotNewData;
+
 
 /**********************************************************************************************************************
 Function Definitions
@@ -115,17 +119,36 @@ void UserApp1Initialize(void)
   G_stAntSetupData.AntFrequency         = ANT_FREQUENCY_USERAPP;
   G_stAntSetupData.AntTxPower           = ANT_TX_POWER_USERAPP;
   
+  //UserApp1_StateMachine = UserApp1SM_SelectANT;
+#if 1
   if(AntChannelConfig(ANT_SLAVE))
   {
     LedOff(RED);
     LedOn(YELLOW);
-    UserApp1_StateMachine = UserApp1SM_Idle;
+    UserApp1_StateMachine = UserApp1SM_SlaveIdle;
   }
   else
   {
     LedBlink(RED, LED_4HZ);
     UserApp1_StateMachine = UserApp1SM_FailedInit;
   }
+#endif
+  
+#if 0
+  if(AntChannelConfig(ANT_MASTER))
+  {
+    AntOpenChannel();
+    LedOff(RED);
+    LedOn(YELLOW);
+    UserApp1_StateMachine = UserApp1SM_Master;
+  }
+  else
+  {
+    LedBlink(RED, LED_4HZ);
+    UserApp1_StateMachine = UserApp1SM_FailedInit;
+  } 
+#endif
+  
 } /* end UserApp1Initialize() */
 
   
@@ -156,6 +179,46 @@ void UserApp1RunActiveState(void)
 /*--------------------------------------------------------------------------------------------------------------------*/
 static void KeyboardService(void)
 {
+  static u8 CharNum = 0;
+  static bool bFull = FALSE;
+  static u8 cStr[2] = {0};
+  /*
+  if (SendRequest)
+  {
+    bFull = FALSE;
+    LCDCommand(LCD_CLEAR_CMD);
+  }
+  */
+  while (*cStr = KeyboardData())
+  {
+    if (*cStr > ENT_)
+    {
+      continue;
+    }
+    if (*cStr == ENT_)
+    {
+      LCDCommand(LCD_CLEAR_CMD);
+      for (; CharNum < 20; CharNum++)
+      {
+        TextMessage[CharNum] = '\0';
+      }
+      CharNum = 0;
+      SendRequest = TRUE;
+      bFull = FALSE;
+      continue;
+    }
+    if (!bFull)
+    {
+      TextMessage[CharNum] = *cStr;
+      LCDMessage(LINE1_START_ADDR + CharNum, cStr);
+      CharNum++;
+      if (CharNum == 20)
+      {
+        bFull = TRUE;
+      }
+    }
+  }
+  /*
   //static u8 cStr[5] = "  \r\n";
   static u8 cStr[2] = {0};
   static u8 col = 0;
@@ -176,7 +239,7 @@ static void KeyboardService(void)
       LCDMessage(LINE1_START_ADDR, strLine);
     }
   }
-  /*static u8 cStr[4] = "";
+  static u8 cStr[4] = "";
   while (cStr[0] = KeyboardData())
   {
     if (cStr[0] == ENT_)
@@ -203,9 +266,7 @@ static void KeyboardService(void)
 State Machine Function Definitions
 **********************************************************************************************************************/
 
-/*-------------------------------------------------------------------------------------------------------------------*/
-/* Wait for a message to be queued */
-static void UserApp1SM_Idle(void)
+static void UserApp1SM_SlaveIdle(void)
 {
   if (WasButtonPressed(BUTTON0))
   {
@@ -216,8 +277,7 @@ static void UserApp1SM_Idle(void)
     UserApp1_u32Timeout = G_u32SystemTime1ms;
     UserApp1_StateMachine = UserApp1SM_WaitChannelOpen;
   }
-} /* end UserApp1SM_Idle() */
-     
+}   
 static void UserApp1SM_WaitChannelOpen(void)
 {
   if (AntRadioStatus() == ANT_OPEN)
@@ -230,12 +290,16 @@ static void UserApp1SM_WaitChannelOpen(void)
     AntCloseChannel();
     LedOff(GREEN);
     LedOn(YELLOW);
-    UserApp1_StateMachine = UserApp1SM_Idle;
+    UserApp1_StateMachine = UserApp1SM_SlaveIdle;
   }
 }
-
 static void UserApp1SM_ChannelOpen(void)
 {
+  static u8 u8CharIndex = 0;
+  
+  static u8 au8DataPacket[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  static u8 u8PacketNumber = 0;
+  
   if (WasButtonPressed(BUTTON0))
   {
     ButtonAcknowledge(BUTTON0);
@@ -272,32 +336,29 @@ static void UserApp1SM_ChannelOpen(void)
         {
           bGotNewData = TRUE;
           au8LastAntData[i] = G_au8AntApiCurrentData[i];
-          
-          au8DataContent[2 * i] = HexToASCIICharUpper(G_au8AntApiCurrentData[i] / 16);
-          au8DataContent[2*i+1] = HexToASCIICharUpper(G_au8AntApiCurrentData[i] % 16);
         }
       }
       
       if (bGotNewData)
       {
-        //LCDClearChars(LINE2_START_ADDR, 20);
-        //LCDMessage(LINE2_START_ADDR, au8DataContent);
-        
-        au8TestMessage[7]++;
-        if (au8TestMessage[7] == 0)
+        if (au8LastAntData[0] == 0)
         {
-          au8TestMessage[6]++;
-          if (au8TestMessage[6] == 0)
+          u8CharIndex = 0;
+          for (u8 i = 0; i < 20; i++)
           {
-            au8TestMessage[5]++;
+            TextMessage[i] = '\0';
           }
+          LCDCommand(LCD_CLEAR_CMD);
         }
-        //AntQueueBroadcastMessage(au8TestMessage);
+        for (u8 i = 1; i < 8 && au8LastAntData[i] != '\0'; i++, u8CharIndex++)
+        {
+          TextMessage[u8CharIndex] = au8LastAntData[i];
+        }
+        LCDMessage(LINE1_START_ADDR, TextMessage);
       }
     }
-    else if(G_eAntApiCurrentMessageClass == ANT_TICK)
+    else if (G_eAntApiCurrentMessageClass == ANT_TICK)
     {
-      UserApp1_u32TickMsgCount++;
       if (u8LastState != G_au8AntApiCurrentData[ANT_TICK_MSG_EVENT_CODE_INDEX])
       {
         u8LastState = G_au8AntApiCurrentData[ANT_TICK_MSG_EVENT_CODE_INDEX];
@@ -325,10 +386,31 @@ static void UserApp1SM_ChannelOpen(void)
           break;
         }
       }
+      
+      if (SendRequest == TRUE) {
+        au8DataPacket[0] = u8PacketNumber;
+        int i;
+        for (i = 1; TextMessage[u8CharIndex] != '\0' && i < 8; i++, u8CharIndex++)
+        {
+          au8DataPacket[i] = TextMessage[u8CharIndex];
+        }
+        for (; i < 8; i++)
+        {
+          au8DataPacket[i] = 0;
+        }
+        u8PacketNumber++;
+        if (TextMessage[u8CharIndex] == '\0')
+        {
+          u8CharIndex = 0;
+          u8PacketNumber = 0;
+          SendRequest = FALSE;
+        }
+      }
+      
+      AntQueueBroadcastMessage(au8DataPacket);
     }
   }
 }
-
 static void UserApp1SM_WaitChannelClose(void)
 {
   if (AntRadioStatus() == ANT_CLOSED)
@@ -336,7 +418,7 @@ static void UserApp1SM_WaitChannelClose(void)
     LedOff(GREEN);
     LedOn(YELLOW);
     
-    UserApp1_StateMachine = UserApp1SM_Idle;
+    UserApp1_StateMachine = UserApp1SM_SlaveIdle;
   }
   
   if (IsTimeUp(&UserApp1_u32Timeout, TIMEOUT_VALUE))
@@ -349,6 +431,111 @@ static void UserApp1SM_WaitChannelClose(void)
   }
 }
 
+static void UserApp1SM_Master(void)
+{ 
+  static u8 au8DataPacket[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+  //static u8 au8DataContent1[21] = "\0";
+  //static u8 au8DataContent2[21] = "\0";
+  
+  //static bool bReceiving = TRUE;
+  static u8 u8PacketNumber = 0;
+  static u8 u8CharIndex = 0;
+  
+  if(AntReadData())
+  {
+    if (G_eAntApiCurrentMessageClass == ANT_DATA)
+    {
+      bGotNewData = FALSE;
+      for (u8 i = 0; i < ANT_APPLICATION_MESSAGE_BYTES; i++)
+      {
+        if (G_au8AntApiCurrentData[i] != au8LastAntData[i])
+        {
+          bGotNewData = TRUE;
+          au8LastAntData[i] = G_au8AntApiCurrentData[i];
+        }
+      }
+      
+      if (bGotNewData)
+      {
+        if (au8LastAntData[0] == 0)
+        {
+          u8CharIndex = 0;
+          for (u8 i = 0; i < 20; i++)
+          {
+            TextMessage[i] = '\0';
+          }
+          LCDCommand(LCD_CLEAR_CMD);
+        }
+        for (u8 i = 1; i < 8 && au8LastAntData[i] != '\0'; i++, u8CharIndex++)
+        {
+          TextMessage[u8CharIndex] = au8LastAntData[i];
+        }
+        LCDMessage(LINE1_START_ADDR, TextMessage);
+      }
+    }
+    /*
+    
+    if(G_eAntApiCurrentMessageClass == ANT_DATA)
+    {
+      if (G_au8AntApiCurrentData[0] == 0)
+      {
+        bReceiving = FALSE;
+      }
+      
+      for (u8 i = 1; i < ANT_DATA_BYTES && index < 40; i++, index++)
+      {
+        if (index < 20)
+        {
+          au8DataContent1[index] = G_au8AntApiCurrentData[i];
+        }
+        else
+        {
+          au8DataContent2[index - 20] = G_au8AntApiCurrentData[i];
+        }  
+        if (G_au8AntApiCurrentData[i] == 0x00)
+        {
+          break;          
+        }
+      }
+      
+      if (bReceiving == FALSE)
+      {
+        LCDCommand(LCD_CLEAR_CMD);
+        LCDMessage(LINE1_START_ADDR, au8DataContent1);
+        LCDMessage(LINE2_START_ADDR, au8DataContent2);
+        au8DataContent1[0] = '\0';
+        au8DataContent2[0] = '\0';
+        index = 0;
+        bReceiving = TRUE;
+      }
+    }
+  */
+    else if (G_eAntApiCurrentMessageClass == ANT_TICK)
+    {
+      if (SendRequest == TRUE) {
+        au8DataPacket[0] = u8PacketNumber;
+        int i;
+        for (i = 1; TextMessage[u8CharIndex] != '\0' && i < 8; i++, u8CharIndex++)
+        {
+          au8DataPacket[i] = TextMessage[u8CharIndex];
+        }
+        for (; i < 8; i++)
+        {
+          au8DataPacket[i] = 0;
+        }
+        u8PacketNumber++;
+        if (TextMessage[u8CharIndex] == '\0')
+        {
+          u8CharIndex = 0;
+          u8PacketNumber = 0;
+          SendRequest = FALSE;
+        }
+      }
+      
+      AntQueueBroadcastMessage(au8DataPacket);
+    }
+  }
+}
 /*-------------------------------------------------------------------------------------------------------------------*/
 /* Handle an error */
 static void UserApp1SM_Error(void)          

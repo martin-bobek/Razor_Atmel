@@ -316,8 +316,8 @@ void PS2Inhibit_TransmitState(void)
     AT91C_BASE_NVIC->NVIC_ICER[0] = 1 << IRQn_TC0;              // Disables interrupt. Will be enabled once 0xFA reception is confirmed
   u8BitCount = 0;
   u8Parity = 0;
-  AT91C_BASE_PIOA->PIO_CODR = PS2_CLOCK_MSK;                    // Bring Clock line low
-  AT91C_BASE_TC0->TC_CCR = AT91C_TC_SWTRG;                      // Starts 100us time
+  AT91C_BASE_PIOA->PIO_CODR = PS2_CLOCK_MSK;                    // Pull Clock line low
+  AT91C_BASE_TC0->TC_CCR = AT91C_TC_SWTRG;                      // Starts 100us timer
 }
 void PS2Start_TransmitState(void)
 {
