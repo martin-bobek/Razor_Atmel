@@ -43,7 +43,7 @@ bool IsButtonHeld(u32 u32Button_, u32 u32ButtonHeldTime_);
 /*--------------------------------------------------------------------------------------------------------------------*/
 /* Protected functions                                                                                                */
 /*--------------------------------------------------------------------------------------------------------------------*/
-void ButtonInitialize(void);                        
+void ButtonInitialize(void);
 void ButtonRunActiveState(void);
 
 u32 GetButtonBitLocation(u8 u8Button_, ButtonPortType ePort_);
@@ -56,8 +56,8 @@ u32 GetButtonBitLocation(u8 u8Button_, ButtonPortType ePort_);
 /***********************************************************************************************************************
 State Machine Declarations
 ***********************************************************************************************************************/
-static void ButtonSM_Idle(void);                
-static void ButtonSM_ButtonActive(void);        
+static void ButtonSM_Idle(void);
+static void ButtonSM_ButtonActive(void);
 
 
 #endif /* __BUTTONS_H */

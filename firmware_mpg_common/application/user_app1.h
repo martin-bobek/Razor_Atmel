@@ -28,6 +28,9 @@ Type Definitions
 /**********************************************************************************************************************
 Constants / Definitions
 **********************************************************************************************************************/
+#define BUTTON0_PIN                         17
+#define BUTTON0_MSK                         (u32)(1 << BUTTON0_PIN)
+
 #define TIMEOUT_VALUE                       (u32)5000
 
 #define ANT_CHANNEL_USERAPP                 (u8)0
@@ -35,10 +38,20 @@ Constants / Definitions
 #define ANT_SERIAL_HI_USERAPP               (u8)0
 #define ANT_DEVICE_TYPE_USERAPP             (u8)1
 #define ANT_TRANSMISSION_TYPE_USERAPP       (u8)1
-#define ANT_CHANNEL_PERIOD_LO_USERAPP       (u8)0x31
-#define ANT_CHANNEL_PERIOD_HI_USERAPP       (u8)0x0d
+#define ANT_CHANNEL_PERIOD_LO_USERAPP       (u8)0xcd
+#define ANT_CHANNEL_PERIOD_HI_USERAPP       (u8)0x0c
 #define ANT_FREQUENCY_USERAPP               (u8)50
 #define ANT_TX_POWER_USERAPP                RADIO_TX_POWER_0DBM
+
+#define PACKET_LENGTH                       8
+#define TEXT_MESSAGE_LENGTH                 112
+#define CODE_MSK                            (u8)0xe0
+#define MSG_CODE                            (u8)0xe0
+#define END_CODE                            (u8)0xa0
+#define ACK_CODE                            (u8)0x80
+#define PACKET_NUM_MSK                      (u8)0x0f
+#define MSG_EO_BIT                          (u8)0x10
+
 
 /**********************************************************************************************************************
 Function Declarations

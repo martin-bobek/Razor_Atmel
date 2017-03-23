@@ -65,18 +65,29 @@ Variable names shall start with "UserApp_" and be declared as static.
 static fnCode_type UserApp1_StateMachine;            /* The state machine function pointer */
 static u32 UserApp1_u32Timeout;                      /* Timeout counter used across states */
 
+
+static bool bSendRequest = FALSE;
+static bool bMsgAvailable = FALSE;
+static u8 strTMessageA[TEXT_MESSAGE_LENGTH + 1];
+static u8 strTMessageB[TEXT_MESSAGE_LENGTH + 1];
+static u8 *pTMessage = strTMessageA;
+
+static u8 strRMessage[TEXT_MESSAGE_LENGTH + 1];
+
+
+/*
 static bool SendRequest = FALSE;
 static u8 TextMessage[21] = "";
 
 static u32 UserApp1_u32DataMsgCount = 0;
 static u32 UserApp1_u32TickMsgCount = 0;
-
+*/
 static u8 u8LastState = 0xFF;
-static u8 au8TickMessage[] = "EVENT x\n\r";
-static u8 au8DataContent[] = "xxxxxxxxxxxxxxxx";
-static u8 au8LastAntData[ANT_APPLICATION_MESSAGE_BYTES] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-static u8 au8TestMessage[] = {0, 0, 0, 0, 0xA5, 0, 0, 0};
-bool bGotNewData;
+//static u8 au8TickMessage[] = "EVENT x\n\r";
+//static u8 au8DataContent[] = "xxxxxxxxxxxxxxxx";
+//static u8 au8LastAntData[ANT_APPLICATION_MESSAGE_BYTES] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+//static u8 au8TestMessage[] = {0, 0, 0, 0, 0xA5, 0, 0, 0};
+//bool bGotNewData;
 
 
 /**********************************************************************************************************************
@@ -93,7 +104,7 @@ Function Definitions
 /*--------------------------------------------------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------------------------------------------------
-Function: UserApp1Initialize
+Function  : UserApp1Initialize
 
 Description:
 Initializes the State Machine and its variables.
@@ -119,36 +130,35 @@ void UserApp1Initialize(void)
   G_stAntSetupData.AntFrequency         = ANT_FREQUENCY_USERAPP;
   G_stAntSetupData.AntTxPower           = ANT_TX_POWER_USERAPP;
   
-  //UserApp1_StateMachine = UserApp1SM_SelectANT;
-#if 1
-  if(AntChannelConfig(ANT_SLAVE))
+  if ((AT91C_BASE_PIOA->PIO_PDSR & BUTTON0_MSK) != 0)
   {
-    LedOff(RED);
-    LedOn(YELLOW);
-    UserApp1_StateMachine = UserApp1SM_SlaveIdle;
+    if(AntChannelConfig(ANT_SLAVE))
+    {
+      LedOff(RED);
+      LedOn(YELLOW);
+      UserApp1_StateMachine = UserApp1SM_SlaveIdle;
+    }
+    else
+    {
+      LedBlink(RED, LED_4HZ);
+      UserApp1_StateMachine = UserApp1SM_FailedInit;
+    }
   }
   else
   {
-    LedBlink(RED, LED_4HZ);
-    UserApp1_StateMachine = UserApp1SM_FailedInit;
-  }
-#endif
-  
-#if 0
-  if(AntChannelConfig(ANT_MASTER))
-  {
-    AntOpenChannel();
-    LedOff(RED);
-    LedOn(YELLOW);
-    UserApp1_StateMachine = UserApp1SM_Master;
-  }
-  else
-  {
-    LedBlink(RED, LED_4HZ);
-    UserApp1_StateMachine = UserApp1SM_FailedInit;
-  } 
-#endif
-  
+    if(AntChannelConfig(ANT_MASTER))
+    {
+      AntOpenChannel();
+      LedOff(RED);
+      LedOn(YELLOW);
+      UserApp1_StateMachine = UserApp1SM_Master;
+    }
+    else
+    {
+      LedBlink(RED, LED_4HZ);
+      UserApp1_StateMachine = UserApp1SM_FailedInit;
+    } 
+  }  
 } /* end UserApp1Initialize() */
 
   
@@ -189,6 +199,12 @@ static void KeyboardService(void)
     LCDCommand(LCD_CLEAR_CMD);
   }
   */
+  if (bMsgAvailable == TRUE)
+  {
+    LCDMessage(LINE1_START_ADDR, strRMessage);
+    bMsgAvailable = FALSE;
+  }
+  
   while (*cStr = KeyboardData())
   {
     if (*cStr > ENT_)
@@ -197,19 +213,22 @@ static void KeyboardService(void)
     }
     if (*cStr == ENT_)
     {
-      LCDCommand(LCD_CLEAR_CMD);
-      for (; CharNum < 20; CharNum++)
+      if (!bSendRequest)
       {
-        TextMessage[CharNum] = '\0';
+        LCDCommand(LCD_CLEAR_CMD);
+        for (; CharNum < 20; CharNum++)
+        {
+          pTMessage[CharNum] = '\0';
+        }
+        CharNum = 0;
+        bSendRequest = TRUE;
+        bFull = FALSE;
       }
-      CharNum = 0;
-      SendRequest = TRUE;
-      bFull = FALSE;
       continue;
     }
     if (!bFull)
     {
-      TextMessage[CharNum] = *cStr;
+      pTMessage[CharNum] = *cStr;
       LCDMessage(LINE1_START_ADDR + CharNum, cStr);
       CharNum++;
       if (CharNum == 20)
@@ -294,11 +313,14 @@ static void UserApp1SM_WaitChannelOpen(void)
   }
 }
 static void UserApp1SM_ChannelOpen(void)
-{
-  static u8 u8CharIndex = 0;
+{ 
+  static enum { IDLE, ACKNOWLEDGE } RState = IDLE;
   
-  static u8 au8DataPacket[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
   static u8 u8PacketNumber = 0;
+  static u8 u8CharIndex = 0;
+  static u8 bMessageEO;
+  static bool bReady = TRUE;
+  static u16 u16RSuccess = 0;
   
   if (WasButtonPressed(BUTTON0))
   {
@@ -326,44 +348,50 @@ static void UserApp1SM_ChannelOpen(void)
       
   if (AntReadData())
   {
-    if(G_eAntApiCurrentMessageClass == ANT_DATA)
+    u8 au8DataPacket[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    if(G_eAntApiCurrentMessageClass == ANT_DATA && (G_au8AntApiCurrentData[0] & 0x80))
     {
-      UserApp1_u32DataMsgCount++;
-      bGotNewData = FALSE;
-      for (u8 i = 0; i < ANT_APPLICATION_MESSAGE_BYTES; i++)
+      if (u8PacketNumber == 0)
       {
-        if (G_au8AntApiCurrentData[i] != au8LastAntData[i])
-        {
-          bGotNewData = TRUE;
-          au8LastAntData[i] = G_au8AntApiCurrentData[i];
-        }
+        bMessageEO = G_au8AntApiCurrentData[0] & MSG_EO_BIT;
       }
+      if (G_au8AntApiCurrentData[0] & CODE_MSK == END_CODE)
+      {
+        bMsgAvailable = TRUE;
+        RState = ACKNOWLEDGE;
+      }
+      u8 u8PNumDiff = (G_au8AntApiCurrentData[0] & PACKET_NUM_MSK) - u8PacketNumber;
+      if (u8PNumDiff == 0)
+      {
+        u16RSuccess |= 1 << u8PacketNumber;
+      }
+      else 
+      {
+        u8CharIndex += 7 * u8PNumDiff;
+        u8PacketNumber += u8PNumDiff;
+      }
+      for (u8 i = 1; i < 8; i++, u8CharIndex++)
+      {
+        strRMessage[u8CharIndex] = G_au8AntApiCurrentData[i];
+      }
+      strRMessage[u8CharIndex] = 0;
       
-      if (bGotNewData)
-      {
-        if (au8LastAntData[0] == 0)
-        {
-          u8CharIndex = 0;
-          for (u8 i = 0; i < 20; i++)
-          {
-            TextMessage[i] = '\0';
-          }
-          LCDCommand(LCD_CLEAR_CMD);
-        }
-        for (u8 i = 1; i < 8 && au8LastAntData[i] != '\0'; i++, u8CharIndex++)
-        {
-          TextMessage[u8CharIndex] = au8LastAntData[i];
-        }
-        LCDMessage(LINE1_START_ADDR, TextMessage);
-      }
     }
     else if (G_eAntApiCurrentMessageClass == ANT_TICK)
     {
+      if (RState == ACKNOWLEDGE)
+      {
+        au8DataPacket[0] = ACK_CODE | bMessageEO;
+        AntQueueBroadcastMessage(au8DataPacket);
+        RState = IDLE;
+      }
+      
+      
       if (u8LastState != G_au8AntApiCurrentData[ANT_TICK_MSG_EVENT_CODE_INDEX])
       {
         u8LastState = G_au8AntApiCurrentData[ANT_TICK_MSG_EVENT_CODE_INDEX];
-        au8TickMessage[6] = HexToASCIICharUpper(u8LastState);
-        DebugPrintf(au8TickMessage);
+        //au8TickMessage[6] = HexToASCIICharUpper(u8LastState);
+        //DebugPrintf(au8TickMessage);
         
         switch (u8LastState) {
         case RESPONSE_NO_ERROR:
@@ -387,6 +415,7 @@ static void UserApp1SM_ChannelOpen(void)
         }
       }
       
+      /*
       if (SendRequest == TRUE) {
         au8DataPacket[0] = u8PacketNumber;
         int i;
@@ -408,6 +437,7 @@ static void UserApp1SM_ChannelOpen(void)
       }
       
       AntQueueBroadcastMessage(au8DataPacket);
+      */
     }
   }
 }
@@ -433,106 +463,89 @@ static void UserApp1SM_WaitChannelClose(void)
 
 static void UserApp1SM_Master(void)
 { 
-  static u8 au8DataPacket[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-  //static u8 au8DataContent1[21] = "\0";
-  //static u8 au8DataContent2[21] = "\0";
-  
-  //static bool bReceiving = TRUE;
   static u8 u8PacketNumber = 0;
   static u8 u8CharIndex = 0;
+  static bool bWaitingAck = FALSE;
+  static u8 bMessageEO= MSG_EO_BIT;
   
   if(AntReadData())
   {
+    u8 au8DataPacket[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
     if (G_eAntApiCurrentMessageClass == ANT_DATA)
     {
-      bGotNewData = FALSE;
-      for (u8 i = 0; i < ANT_APPLICATION_MESSAGE_BYTES; i++)
+      if (bWaitingAck && (G_au8AntApiCurrentData[0] == (ACK_CODE | bMessageEO)))
       {
-        if (G_au8AntApiCurrentData[i] != au8LastAntData[i])
-        {
-          bGotNewData = TRUE;
-          au8LastAntData[i] = G_au8AntApiCurrentData[i];
-        }
-      }
-      
-      if (bGotNewData)
-      {
-        if (au8LastAntData[0] == 0)
-        {
-          u8CharIndex = 0;
-          for (u8 i = 0; i < 20; i++)
-          {
-            TextMessage[i] = '\0';
-          }
-          LCDCommand(LCD_CLEAR_CMD);
-        }
-        for (u8 i = 1; i < 8 && au8LastAntData[i] != '\0'; i++, u8CharIndex++)
-        {
-          TextMessage[u8CharIndex] = au8LastAntData[i];
-        }
-        LCDMessage(LINE1_START_ADDR, TextMessage);
+        bMessageEO ^= MSG_EO_BIT;
+        bWaitingAck = FALSE;
+        bSendRequest = FALSE;
       }
     }
-    /*
-    
-    if(G_eAntApiCurrentMessageClass == ANT_DATA)
-    {
-      if (G_au8AntApiCurrentData[0] == 0)
-      {
-        bReceiving = FALSE;
-      }
-      
-      for (u8 i = 1; i < ANT_DATA_BYTES && index < 40; i++, index++)
-      {
-        if (index < 20)
-        {
-          au8DataContent1[index] = G_au8AntApiCurrentData[i];
-        }
-        else
-        {
-          au8DataContent2[index - 20] = G_au8AntApiCurrentData[i];
-        }  
-        if (G_au8AntApiCurrentData[i] == 0x00)
-        {
-          break;          
-        }
-      }
-      
-      if (bReceiving == FALSE)
-      {
-        LCDCommand(LCD_CLEAR_CMD);
-        LCDMessage(LINE1_START_ADDR, au8DataContent1);
-        LCDMessage(LINE2_START_ADDR, au8DataContent2);
-        au8DataContent1[0] = '\0';
-        au8DataContent2[0] = '\0';
-        index = 0;
-        bReceiving = TRUE;
-      }
-    }
-  */
     else if (G_eAntApiCurrentMessageClass == ANT_TICK)
     {
-      if (SendRequest == TRUE) {
-        au8DataPacket[0] = u8PacketNumber;
-        int i;
-        for (i = 1; TextMessage[u8CharIndex] != '\0' && i < 8; i++, u8CharIndex++)
+      if (bSendRequest && !bWaitingAck)
+      {
+        au8DataPacket[0] = bMessageEO | (u8PacketNumber & PACKET_NUM_MSK);
+        u8 i;
+        for(i = 1; ; u8CharIndex++, i++)
         {
-          au8DataPacket[i] = TextMessage[u8CharIndex];
-        }
-        for (; i < 8; i++)
-        {
-          au8DataPacket[i] = 0;
-        }
-        u8PacketNumber++;
-        if (TextMessage[u8CharIndex] == '\0')
-        {
-          u8CharIndex = 0;
-          u8PacketNumber = 0;
-          SendRequest = FALSE;
+          if (pTMessage[u8CharIndex] == '\0')
+          {
+            u8PacketNumber = 0;
+            u8CharIndex = 0;
+            for (; i < PACKET_LENGTH; i++)
+              au8DataPacket[i] = 0;
+            au8DataPacket[0] |= END_CODE;
+            bWaitingAck = TRUE;
+            break;
+          }
+          if (i >= PACKET_LENGTH)
+          {
+            u8PacketNumber++;
+            au8DataPacket[0] |= MSG_CODE;
+            break;
+          }
+          au8DataPacket[i] = pTMessage[u8CharIndex];
         }
       }
-      
       AntQueueBroadcastMessage(au8DataPacket);
+      
+      /* 
+      The protocol should be able to handle a Slave Handshake at any point.
+      Syncing:
+        Once a Slave detects a Master, it sends out a Slave handshake repeatedly every 1 seconds until it receives the Master Handshake. The
+          Master has 1/2 seconds to respond after seeing the Slave Handshake.
+        Once the Slave receives the Master Handshake, it stops transmitting. If Master stops seeing the Slave Handshake, it assumes the 
+          devices are paired successfully.
+      
+      Message:
+        Simply transmits packets 1 by 1. 
+        After end packet, receiver has 1/2 seconds to respond with an acknowledgement or resend request. The sender continues sending Ack
+          request every 1 seconds until it receives a reply from the receiver.
+      
+      
+          Last 7 bytes contain the characters (unless the message ends before the end of the packet in which case they contain 0's.
+          First byte acts as the MSG Code;
+          
+        Byte 1:
+      Message packet 1:     111x nnnn
+        where x = (Message Number) % 2, and nnnn is the packet number in the message (0 to 15) with 
+      Last Packet:          101x nnnn
+        where x and n are as before
+      Resend packets/Ack:   100x nnnn
+        where x is a mirror of senders x, and nnnn is the number of bytes to resend. If nnnn is zero, this is an acknowledgement
+        Remaining bytes: pppp mmmm, where pppp and nnnn are the packet numbers of the packets to be resent.
+      Resend remaining:     110x 0000   0000 nnnn   
+        Resends all packets after nnnn up to the last packet. Remaining bytes are 0
+      Resend Entire:        110x 0001
+        Remaining bytes are 0;
+      Ack request:          110x 0010
+      Handshake:            1100 0011 
+        with next three bytes containing the Chars of the name code. Remaining bytes are zero.
+      Nothing (master):     0000 0000
+        where all remaining bytes are also 0.
+      Slave Handshake:
+      Master Handshake:
+      */
     }
   }
 }
