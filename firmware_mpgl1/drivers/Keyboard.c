@@ -198,6 +198,18 @@ void KeyboardRunActiveState(void)
         case 0x5A:  /* NUM Enter */
           PushChar(KEN_);
           break;
+        case 0x75:  /* Up Arrow */
+          PushChar(UAR_);
+          break;
+        case 0x6B:  /* Left Arrow */
+          PushChar(LAR_);
+          break;
+        case 0x72:  /* Down Arrow */
+          PushChar(DAR_);
+          break;
+        case 0x74:  /* Right Arrow */
+          PushChar(RAR_);
+          break;
         }
         break;
       case ALT0BRK:

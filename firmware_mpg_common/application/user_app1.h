@@ -28,14 +28,16 @@ Type Definitions
 /**********************************************************************************************************************
 Constants / Definitions
 **********************************************************************************************************************/
+#define CHAT_NUM_LINES                      20
+
 #define BUTTON0_PIN                         17
 #define BUTTON0_MSK                         (u32)(1 << BUTTON0_PIN)
 
 #define TIMEOUT_VALUE                       (u32)5000
 
 #define ANT_CHANNEL_USERAPP                 (u8)0
-#define ANT_SERIAL_LO_USERAPP               (u8)0
-#define ANT_SERIAL_HI_USERAPP               (u8)0
+#define ANT_SERIAL_LO_USERAPP               (u8)0x54
+#define ANT_SERIAL_HI_USERAPP               (u8)0x70
 #define ANT_DEVICE_TYPE_USERAPP             (u8)1
 #define ANT_TRANSMISSION_TYPE_USERAPP       (u8)1
 #define ANT_CHANNEL_PERIOD_LO_USERAPP       (u8)0xcd
@@ -72,19 +74,22 @@ void UserApp1RunActiveState(void);
 /*--------------------------------------------------------------------------------------------------------------------*/
 /* Private functions                                                                                                  */
 /*--------------------------------------------------------------------------------------------------------------------*/
-static void KeyboardService(void);
+static void MessageInitialize(void);
+static void MessageService(void);
+
+static bool IsPunctuation(u8 u8Char);
 
 /***********************************************************************************************************************
 State Machine Declarations
 ***********************************************************************************************************************/
-static void UserApp1SM_SelectANT(void);
 static void UserApp1SM_Master(void);
+
 static void UserApp1SM_SlaveIdle(void);
-static void UserApp1SM_WaitChannelOpen(void);
-static void UserApp1SM_ChannelOpen(void);
-static void UserApp1SM_WaitChannelClose(void);
-static void UserApp1SM_Error(void);         
-static void UserApp1SM_FailedInit(void);        
+static void UserApp1SM_SlaveWaitChannelOpen(void);
+static void UserApp1SM_SlaveChannelOpen(void);
+static void UserApp1SM_SlaveWaitChannelClose(void);
+
+static void AntParse(void);
 
 static void UserApp1SM_Error(void);         
 static void UserApp1SM_FailedInit(void);        

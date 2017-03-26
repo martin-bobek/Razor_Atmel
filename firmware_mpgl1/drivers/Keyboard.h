@@ -25,6 +25,10 @@ typedef enum {
       F10_       ,  // F10
       F11_       ,  // F11
       F12_       ,  // F12
+      UAR_       ,  // Up Arrow
+      LAR_       ,  // Left Arrow
+      DAR_       ,  // Down Arrow
+      RAR_       ,  // Right Arrow
       KEN_ = ENT_,  // Keypad Enter
       KMU_ = '*' ,  // Keypad *
       KSU_ = '-' ,  // Keypad -
