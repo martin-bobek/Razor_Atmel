@@ -69,9 +69,7 @@ void main(void)
   KeyboardInitialize();
 
   /* Application initialization */
-  UserApp1Initialize();
-  UserApp2Initialize();
-  UserApp3Initialize();
+  UserAppInitialize();
   
   /* Exit initialization */
   SystemStatusReport();
@@ -97,9 +95,7 @@ void main(void)
     KeyboardRunActiveState();
 
     /* Applications */
-    UserApp1RunActiveState();
-    UserApp2RunActiveState();
-    UserApp3RunActiveState();
+    UserAppRunActiveState();
     
     /* System sleep*/
     HEARTBEAT_OFF();

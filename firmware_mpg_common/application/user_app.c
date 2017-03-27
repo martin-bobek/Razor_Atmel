@@ -1,5 +1,5 @@
 /**********************************************************************************************************************
-File: user_app1.c                                                                
+File: user_app.c                                                                
 
 ----------------------------------------------------------------------------------------------------------------------
 To start a new task using this user_app1 as a template:
@@ -16,7 +16,7 @@ To start a new task using this user_app1 as a template:
 ----------------------------------------------------------------------------------------------------------------------
 
 Description:
-This is a user_app1.c file template 
+This is a user_app.c file template 
 
 ------------------------------------------------------------------------------------------------------------------------
 API:
@@ -41,7 +41,7 @@ Global variable definitions with scope across entire project.
 All Global variable names shall start with "G_"
 ***********************************************************************************************************************/
 /* New variables */
-volatile u32 G_u32UserApp1Flags;                       /* Global state flags */
+volatile u32 G_u32UserAppFlags;                       /* Global state flags */
 
 
 /*--------------------------------------------------------------------------------------------------------------------*/
@@ -62,13 +62,20 @@ extern u8 G_au8AntApiCurrentData[ANT_APPLICATION_MESSAGE_BYTES];
 Global variable definitions with scope limited to this local application.
 Variable names shall start with "UserApp_" and be declared as static.
 ***********************************************************************************************************************/
-static fnCode_type UserApp1_StateMachine;            /* The state machine function pointer */
-static u32 UserApp1_u32Timeout;                      /* Timeout counter used across states */
+static fnCode_type ANT_StateMachine;
+static u32 UserApp_u32Timeout;                           /* Timeout counter used across states */
+static fnCode_type Game_StateMachine;                     /* Game state machine function pointer */
 
-static bool bSendRequest = FALSE;
 static u8 strTMessageA[TEXT_MESSAGE_LENGTH + 1];
 static u8 strTMessageB[TEXT_MESSAGE_LENGTH + 1];
-static u8 *pTMessage = strTMessageA;
+static u8 *pTMsgChat = strTMessageA;
+static u8 *pTMsgAnt = strTMessageB;
+static bool bSendRequest = FALSE;
+
+static u8 au8FirstNonPunct[CHAT_NUM_LINES]; // 21 for space beyond end
+static u8 astrChatLines[CHAT_NUM_LINES][LCD_MAX_LINE_DISPLAY_SIZE + 1] = {"        CHAT"};
+static u8 u8CurrentLine = CHAT_NUM_LINES - 1;
+static u8 u8MsgStart = CHAT_NUM_LINES - 1;
 
 static u8 strRMessage[TEXT_MESSAGE_LENGTH + 1];
 static bool bMsgAvailable = FALSE;
@@ -113,9 +120,8 @@ Requires:
 Promises:
   - 
 */
-void UserApp1Initialize(void)
+void UserAppInitialize(void)
 {
-  MessageInitialize();
   LedOn(RED);
   
   G_stAntSetupData.AntChannel           = ANT_CHANNEL_USERAPP;
@@ -128,18 +134,19 @@ void UserApp1Initialize(void)
   G_stAntSetupData.AntFrequency         = ANT_FREQUENCY_USERAPP;
   G_stAntSetupData.AntTxPower           = ANT_TX_POWER_USERAPP;
   
+  Game_StateMachine = Game_MainMenu;
   if ((AT91C_BASE_PIOA->PIO_PDSR & BUTTON0_MSK) != 0)
   {
     if(AntChannelConfig(ANT_SLAVE))
     {
       LedOff(RED);
       LedOn(YELLOW);
-      UserApp1_StateMachine = UserApp1SM_SlaveIdle;
+      ANT_StateMachine = ANT_SlaveIdle;
     }
     else
     {
       LedBlink(RED, LED_4HZ);
-      UserApp1_StateMachine = UserApp1SM_FailedInit;
+      ANT_StateMachine = ANT_FailedInit;
     }
   }
   else
@@ -149,12 +156,12 @@ void UserApp1Initialize(void)
       AntOpenChannel();
       LedOff(RED);
       LedOn(YELLOW);
-      UserApp1_StateMachine = UserApp1SM_Master;
+      ANT_StateMachine = ANT_Master;
     }
     else
     {
       LedBlink(RED, LED_4HZ);
-      UserApp1_StateMachine = UserApp1SM_FailedInit;
+      ANT_StateMachine = ANT_FailedInit;
     } 
   }  
 } /* end UserApp1Initialize() */
@@ -174,11 +181,14 @@ Requires:
 Promises:
   - Calls the function to pointed by the state machine function pointer
 */
-void UserApp1RunActiveState(void)
+void UserAppRunActiveState(void)
 {
-  MessageService();
-  UserApp1_StateMachine();
-
+  Game_StateMachine();
+  if (bMsgAvailable)
+  {
+    ServiceIncoming();
+  }
+  ANT_StateMachine();
 } /* end UserApp1RunActiveState */
 
 
@@ -191,20 +201,105 @@ static bool IsPunctuation(u8 u8Char)
            (u8Char >= 'A' && u8Char <= 'Z') ||
            (u8Char >= '0' && u8Char <= '9'));
 }
-
-static void MessageInitialize(void) 
+static void ChatInitialize(void) 
 {
-  LCDCommand(LCD_CLEAR_CMD);
-  LCDMessage(LINE1_START_ADDR, "        CHAT");
+    LCDCommand(LCD_CLEAR_CMD);
+    LCDMessage(LINE1_START_ADDR, "        CHAT");
+    while (KeyboardData());
 }
-
-static void MessageService(void)
+/* need to properly handle au8FirstNonPunct, u8LinesInit, etc... */
+static void ServiceIncoming(void)
+{
+  static u8 strOpp[] = "OPP: ";
+  static u8 strYou[] = "YOU: ";
+  
+  static u8 u8RLineNum;
+  static u8 u8RCharNum;
+  static bool bYouRestore;
+  static bool bFirstEntry = TRUE;
+  static u8 u8Index;
+  
+  if (bFirstEntry)
+  {
+    u8RLineNum = u8MsgStart;
+    u8RCharNum = 0;
+    bYouRestore = FALSE;
+    bFirstEntry = FALSE;
+    for (u8Index = 0; u8Index < 5; u8Index++)
+    {
+      astrChatLines[u8RLineNum][u8Index] = strOpp[u8Index];
+    }
+  }
+  for (; ; u8RCharNum++, u8Index++)
+  {
+    u8 u8Char = bYouRestore ? pTMsgChat[u8RCharNum] : strRMessage[u8RCharNum];
+    
+    if (u8Char == '\n')
+    {
+      astrChatLines[u8RLineNum][u8Index] = '\0';
+      if (u8RLineNum == 0)
+        u8RLineNum = CHAT_NUM_LINES;
+      u8RLineNum--;
+      break;
+    }
+    if (u8Char == '\0')
+    {
+      astrChatLines[u8RLineNum][u8Index] = '\0';
+      if (bYouRestore == FALSE)
+      {
+        bYouRestore = TRUE;
+        u8RCharNum = 0;
+        if (u8RLineNum == 0)
+          u8RLineNum = CHAT_NUM_LINES;
+        u8RLineNum--;
+        u8MsgStart = u8RLineNum;
+        for (u8Index = 0; u8Index < 5; u8Index++)
+        {
+          astrChatLines[u8RLineNum][u8Index] = strYou[u8Index];
+        }
+      }
+      else
+      {
+        bFirstEntry = TRUE;
+        u8CurrentLine = u8RLineNum;
+        bMsgAvailable = FALSE;
+      }
+      break;
+    }
+    astrChatLines[u8RLineNum][u8Index] = u8Char;
+  }
+}
+/**********************************************************************************************************************
+State Machine Function Definitions
+**********************************************************************************************************************/
+static void Game_MainMenu()
+{
+  static u8 strControls[] = "               ENTER";
+  static u8 strChat[]     = "        CHAT        ";
+  static bool bFirstEntry = TRUE;
+  
+  if (bFirstEntry)
+  {
+    ButtonAcknowledge(BUTTON0);
+    ButtonAcknowledge(BUTTON1);
+    ButtonAcknowledge(BUTTON2);
+    ButtonAcknowledge(BUTTON3);
+    
+    LCDMessage(LINE1_START_ADDR, strChat);
+    LCDMessage(LINE2_START_ADDR, strControls);
+    bFirstEntry = FALSE;
+  }
+  
+  if (WasButtonPressed(BUTTON3))        /* Go to StartScreen state of the selected games */
+  {
+    ChatInitialize();
+    Game_StateMachine = Game_Chat;
+    bFirstEntry = TRUE;
+  }
+}
+static void Game_Chat(void)
 {
   static u8 strYou[] = "YOU: ";
-  static u8 astrChatLines[CHAT_NUM_LINES][LCD_MAX_LINE_DISPLAY_SIZE + 1] = {"        CHAT"};
-  static u8 au8FirstNonPunct[CHAT_NUM_LINES]; // 21 for space beyond end
-  static u8 u8CurrentLine = CHAT_NUM_LINES - 1;
-  static u8 u8MsgStart = CHAT_NUM_LINES - 1;
   static u8 u8LinesInit = 1;
   static u8 u8ScrollBack = 0;
   static u8 u8TCharNum = 0;
@@ -212,19 +307,49 @@ static void MessageService(void)
   static u8 cStr[2] = "";
   static bool bMsgBegin = TRUE;
   
+  if (bMsgAvailable)
+  {
+    Game_StateMachine = Game_PrintIncoming;
+    astrChatLines[u8CurrentLine][u8Col] = '\0';
+    return;
+  }
+  
   if (bMsgBegin)
   {
     LCDMessage(LINE2_START_ADDR, strYou);
     au8FirstNonPunct[u8CurrentLine] = 5;
     au8FirstNonPunct[(u8CurrentLine + 1) % CHAT_NUM_LINES] = 20;
-    for ( ; u8Col < 5; u8Col++)
+    for (u8Col = 0; u8Col < 5; u8Col++)
       astrChatLines[u8CurrentLine][u8Col] = strYou[u8Col];
     bMsgBegin = FALSE;
   }
   
   if (*cStr = KeyboardData())
   {
-    if ((*cStr == UAR_) && (u8ScrollBack + 1 < u8LinesInit))
+    if ((*cStr == ENT_) && (u8TCharNum > 0) && !bSendRequest)
+    {
+      bSendRequest = TRUE;
+      pTMsgChat[u8TCharNum] = '\0';
+      u8TCharNum = 0;
+      pTMsgAnt = pTMsgChat;
+      if (pTMsgChat == strTMessageA)
+      {
+        pTMsgChat = strTMessageB;
+      }
+      else
+      {
+        pTMsgChat = strTMessageA;
+      }
+      astrChatLines[u8CurrentLine][u8Col] = '\0';
+      LCDCommand(LCD_CLEAR_CMD);
+      LCDMessage(LINE1_START_ADDR, astrChatLines[u8CurrentLine]);
+      if (u8CurrentLine == 0)
+        u8CurrentLine = CHAT_NUM_LINES;
+      u8CurrentLine--;
+      u8MsgStart = u8CurrentLine;
+      bMsgBegin = TRUE;
+    }
+    else if ((*cStr == UAR_) && (u8ScrollBack + 1 < u8LinesInit))
     {
       u8ScrollBack++;
       astrChatLines[u8CurrentLine][u8Col] = '\0';
@@ -247,6 +372,12 @@ static void MessageService(void)
       {        
         u8LinesInit--;
         LCDCommand(LCD_CLEAR_CMD);
+        u8 i;
+        for (i = 20 - au8FirstNonPunct[u8PastLine]; i > 0; i--)
+        {
+          pTMsgChat[u8TCharNum - i - 1] = pTMsgChat[u8TCharNum - i];
+        }
+        u8TCharNum--;
         astrChatLines[u8PastLine][au8FirstNonPunct[u8PastLine]] = astrChatLines[u8CurrentLine][0];
         u8CurrentLine = u8PastLine;
         LCDMessage(LINE2_START_ADDR, astrChatLines[u8CurrentLine]);
@@ -256,6 +387,7 @@ static void MessageService(void)
       if (au8FirstNonPunct[u8CurrentLine] != 21)
       {
         u8Col--;
+        u8TCharNum--;
         LCDMessage(LINE2_START_ADDR + u8Col, " ");
       }
       if (u8Col < au8FirstNonPunct[u8CurrentLine])
@@ -263,10 +395,9 @@ static void MessageService(void)
         u8 i;
         for (i = u8Col; (i != 0) && !IsPunctuation(astrChatLines[u8CurrentLine][i - 1]); i--);
         au8FirstNonPunct[u8CurrentLine] = i;
-          
       }
     }
-    else if ((*cStr < ENT_) && (u8ScrollBack == 0))
+    else if ((*cStr < ENT_) && (u8ScrollBack == 0) && (u8TCharNum + 1 < TEXT_MESSAGE_LENGTH))
     {
       if (*cStr == ' ')
       {
@@ -286,40 +417,54 @@ static void MessageService(void)
       if (u8Col == 20)
       {
         LCDCommand(LCD_CLEAR_CMD);
-        u8 u8PastLine = u8CurrentLine;
+        u8 u8PastLine = u8CurrentLine;      // remember currentLine
         if (u8CurrentLine == 0)
           u8CurrentLine = CHAT_NUM_LINES;
-        u8CurrentLine--;
-        u8Col = 0;
-        if (au8FirstNonPunct[u8PastLine] != 0)
+        u8CurrentLine--;                    // update current line
+        u8Col = 0;                          // send cursor back to start of line
+        if (au8FirstNonPunct[u8PastLine] != 0)        // if long word did not begin at start of previous line, push it to next line
         {
-          for (u8 i = au8FirstNonPunct[u8PastLine]; i < 20; i++, u8Col++)
+          for (u8 i = au8FirstNonPunct[u8PastLine]; i < 20; i++, u8Col++)         // copy beginning of word to next line             
             astrChatLines[u8CurrentLine][u8Col] = astrChatLines[u8PastLine][i];
-          astrChatLines[u8PastLine][au8FirstNonPunct[u8PastLine]] = '\0';
-          astrChatLines[u8CurrentLine][u8Col] = '\0';
-          au8FirstNonPunct[u8CurrentLine] = 0;
+          u8 i;
+          for (i = 0; 20 - i > au8FirstNonPunct[u8PastLine]; i++)
+          {
+            pTMsgChat[u8TCharNum - i] = pTMsgChat[u8TCharNum - i - 1];
+          }
+          pTMsgChat[u8TCharNum - i] = '\n';
+          u8TCharNum++;
+          astrChatLines[u8PastLine][au8FirstNonPunct[u8PastLine]] = '\0';         // terminate the last line
+          astrChatLines[u8CurrentLine][u8Col] = '\0';                             // terminate the current line
+          au8FirstNonPunct[u8CurrentLine] = 0;                                    // beginning of word must be start of current line
           LCDMessage(LINE2_START_ADDR, astrChatLines[u8CurrentLine]);
         }
         LCDMessage(LINE1_START_ADDR, astrChatLines[u8PastLine]);
         if (u8LinesInit < 19)
           u8LinesInit++;
       }
-      //pTMessage[u8TCharNum] = *cStr;
       astrChatLines[u8CurrentLine][u8Col] = *cStr;
       LCDMessage(LINE2_START_ADDR + u8Col, cStr);
-      //u8TCharNum++;
+      pTMsgChat[u8TCharNum] = *cStr;
+      u8TCharNum++;
       u8Col++;
       if (IsPunctuation(*cStr))
         au8FirstNonPunct[u8CurrentLine] = u8Col;
     }
   }
 }
+static void Game_PrintIncoming(void)
+{
+  static bool bFirstEntry = TRUE;
+  static u32 u32Counter;
+  
+  if (bFirstEntry)
+  {
+    u32Counter = 25;
+  }
+  
+}
 
-/**********************************************************************************************************************
-State Machine Function Definitions
-**********************************************************************************************************************/
-
-static void UserApp1SM_SlaveIdle(void)
+static void ANT_SlaveIdle(void)
 {
   if (WasButtonPressed(BUTTON0))
   {
@@ -327,26 +472,26 @@ static void UserApp1SM_SlaveIdle(void)
     AntOpenChannel();
     LedOff(YELLOW);
     LedBlink(GREEN, LED_2HZ);
-    UserApp1_u32Timeout = G_u32SystemTime1ms;
-    UserApp1_StateMachine = UserApp1SM_SlaveWaitChannelOpen;
+    UserApp_u32Timeout = G_u32SystemTime1ms;
+    ANT_StateMachine = ANT_SlaveWaitChannelOpen;
   }
 }   
-static void UserApp1SM_SlaveWaitChannelOpen(void)
+static void ANT_SlaveWaitChannelOpen(void)
 {
   if (AntRadioStatus() == ANT_OPEN)
   {
     LedOn(GREEN);
-    UserApp1_StateMachine = UserApp1SM_SlaveChannelOpen;
+    ANT_StateMachine = ANT_SlaveChannelOpen;
   }
-  if (IsTimeUp(&UserApp1_u32Timeout, TIMEOUT_VALUE)) 
+  if (IsTimeUp(&UserApp_u32Timeout, TIMEOUT_VALUE)) 
   {
     AntCloseChannel();
     LedOff(GREEN);
     LedOn(YELLOW);
-    UserApp1_StateMachine = UserApp1SM_SlaveIdle;
+    ANT_StateMachine = ANT_SlaveIdle;
   }
 }
-static void UserApp1SM_SlaveChannelOpen(void)
+static void ANT_SlaveChannelOpen(void)
 {
   if (WasButtonPressed(BUTTON0))
   {
@@ -359,8 +504,8 @@ static void UserApp1SM_SlaveChannelOpen(void)
     LedOff(BLUE);
     LedBlink(GREEN, LED_2HZ);
     
-    UserApp1_u32Timeout = G_u32SystemTime1ms;
-    UserApp1_StateMachine = UserApp1SM_SlaveWaitChannelClose;
+    UserApp_u32Timeout = G_u32SystemTime1ms;
+    ANT_StateMachine = ANT_SlaveWaitChannelClose;
   }  
   if (AntRadioStatus() != ANT_OPEN)
   {
@@ -369,20 +514,21 @@ static void UserApp1SM_SlaveChannelOpen(void)
     LedOff(BLUE);
     u8LastState = 0xFF;
     
-    UserApp1_u32Timeout = G_u32SystemTime1ms;
-    UserApp1_StateMachine = UserApp1SM_SlaveWaitChannelClose;
+    UserApp_u32Timeout = G_u32SystemTime1ms;
+    ANT_StateMachine = ANT_SlaveWaitChannelClose;
   }
   if (AntReadData())
   {
     if (G_eAntApiCurrentMessageClass == ANT_DATA)
     {
-      static u8 strAsciiData[] = "XX XX XX XX XX XX XX XX\r\n";
+      /*static u8 strAsciiData[] = "XX XX XX XX XX XX XX XX\r\n";
       for (u8 i = 0; i < 8; i++)
       {
         strAsciiData[3 * i] = HexToASCIICharUpper(G_au8AntApiCurrentData[i] >> 4);
         strAsciiData[3*i+1] = HexToASCIICharUpper(G_au8AntApiCurrentData[i] & 0xF);
       }
       DebugPrintf(strAsciiData);
+      */
       
       AntParse();
     }
@@ -445,23 +591,23 @@ static void UserApp1SM_SlaveChannelOpen(void)
     }
   }
 }
-static void UserApp1SM_SlaveWaitChannelClose(void)
+static void ANT_SlaveWaitChannelClose(void)
 {
   if (AntRadioStatus() == ANT_CLOSED)
   {
     LedOff(GREEN);
     LedOn(YELLOW);
     
-    UserApp1_StateMachine = UserApp1SM_SlaveIdle;
+    ANT_StateMachine = ANT_SlaveIdle;
   }
   
-  if (IsTimeUp(&UserApp1_u32Timeout, TIMEOUT_VALUE))
+  if (IsTimeUp(&UserApp_u32Timeout, TIMEOUT_VALUE))
   {
     LedOff(GREEN);
     LedOff(YELLOW);
     LedBlink(RED, LED_4HZ);
     
-    UserApp1_StateMachine = UserApp1SM_Error;
+    ANT_StateMachine = ANT_Error;
   }
 }
 
@@ -540,7 +686,7 @@ Slave Handshake:
 Master Handshake:
 */
 
-static void UserApp1SM_Master(void)
+static void ANT_Master(void)
 { 
   static u8 u8PacketNumber = 0;
   static u8 u8CharIndex = 0;
@@ -567,7 +713,7 @@ static void UserApp1SM_Master(void)
         u8 i;
         for(i = 1; ; u8CharIndex++, i++)
         {
-          if (pTMessage[u8CharIndex] == '\0')
+          if (pTMsgChat[u8CharIndex] == '\0')
           {
             u8PacketNumber = 0;
             u8CharIndex = 0;
@@ -583,7 +729,7 @@ static void UserApp1SM_Master(void)
             au8DataPacket[0] |= MSG_CODE;
             break;
           }
-          au8DataPacket[i] = pTMessage[u8CharIndex];
+          au8DataPacket[i] = pTMsgChat[u8CharIndex];
         }
       }
       AntQueueBroadcastMessage(au8DataPacket);
@@ -592,15 +738,14 @@ static void UserApp1SM_Master(void)
 }
 /*-------------------------------------------------------------------------------------------------------------------*/
 /* Handle an error */
-static void UserApp1SM_Error(void)          
+static void ANT_Error(void)          
 {
   
 } /* end UserApp1SM_Error() */
 
-
 /*-------------------------------------------------------------------------------------------------------------------*/
 /* State to sit in if init failed */
-static void UserApp1SM_FailedInit(void)          
+static void ANT_FailedInit(void)          
 {
     
 } /* end UserApp1SM_FailedInit() */
