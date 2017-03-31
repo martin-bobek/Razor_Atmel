@@ -76,6 +76,10 @@ static u8 au8FirstNonPunct[CHAT_NUM_LINES]; // 21 for space beyond end
 static u8 astrChatLines[CHAT_NUM_LINES][LCD_MAX_LINE_DISPLAY_SIZE + 1] = {"        CHAT"};
 static u8 u8CurrentLine = CHAT_NUM_LINES - 1;
 static u8 u8MsgStart = CHAT_NUM_LINES - 1;
+static u8 u8IncomingStart;
+static u8 u8LinesInit = 0;
+static u8 u8REOBit;
+static bool bRAck = FALSE;
 
 static u8 strRMessage[TEXT_MESSAGE_LENGTH + 1];
 static bool bMsgAvailable = FALSE;
@@ -207,7 +211,7 @@ static void ChatInitialize(void)
     LCDMessage(LINE1_START_ADDR, "        CHAT");
     while (KeyboardData());
 }
-/* need to properly handle au8FirstNonPunct, u8LinesInit, etc... */
+/* need to properly handle au8FirstNonPunct, etc... */
 static void ServiceIncoming(void)
 {
   static u8 strOpp[] = "OPP: ";
@@ -225,21 +229,28 @@ static void ServiceIncoming(void)
     u8RCharNum = 0;
     bYouRestore = FALSE;
     bFirstEntry = FALSE;
+    u8IncomingStart = u8MsgStart;
     for (u8Index = 0; u8Index < 5; u8Index++)
     {
       astrChatLines[u8RLineNum][u8Index] = strOpp[u8Index];
     }
   }
+  if (!bYouRestore && u8LinesInit < 19)
+  {
+    u8LinesInit++;
+  }
   for (; ; u8RCharNum++, u8Index++)
   {
-    u8 u8Char = bYouRestore ? pTMsgChat[u8RCharNum] : strRMessage[u8RCharNum];
-    
+    u8 u8Char;
+    u8Char = bYouRestore ? pTMsgChat[u8RCharNum] : strRMessage[u8RCharNum];
     if (u8Char == '\n')
     {
       astrChatLines[u8RLineNum][u8Index] = '\0';
       if (u8RLineNum == 0)
         u8RLineNum = CHAT_NUM_LINES;
       u8RLineNum--;
+      u8Index = 0;
+      u8RCharNum++;
       break;
     }
     if (u8Char == '\0')
@@ -298,9 +309,8 @@ static void Game_MainMenu()
   }
 }
 static void Game_Chat(void)
-{
+{  
   static u8 strYou[] = "YOU: ";
-  static u8 u8LinesInit = 1;
   static u8 u8ScrollBack = 0;
   static u8 u8TCharNum = 0;
   static u8 u8Col = 0;
@@ -311,11 +321,13 @@ static void Game_Chat(void)
   {
     Game_StateMachine = Game_PrintIncoming;
     astrChatLines[u8CurrentLine][u8Col] = '\0';
+    u8ScrollBack = 0;
     return;
   }
-  
   if (bMsgBegin)
   {
+    if (u8LinesInit < 19)
+      u8LinesInit++;
     LCDMessage(LINE2_START_ADDR, strYou);
     au8FirstNonPunct[u8CurrentLine] = 5;
     au8FirstNonPunct[(u8CurrentLine + 1) % CHAT_NUM_LINES] = 20;
@@ -459,9 +471,31 @@ static void Game_PrintIncoming(void)
   
   if (bFirstEntry)
   {
-    u32Counter = 25;
+    u32Counter = 100;
+    LedOff(LCD_BLUE);
+    LedOff(LCD_RED);
+    bFirstEntry = FALSE;
   }
   
+  u32Counter--;
+  if (u32Counter == 0)
+  {
+    if (u8IncomingStart == u8CurrentLine)
+    {
+      Game_StateMachine = Game_Chat;
+      LedOn(LCD_BLUE);
+      LedOn(LCD_RED);
+      bFirstEntry = TRUE; 
+      return;
+    }
+    u32Counter = 250;
+    LCDCommand(LCD_CLEAR_CMD);
+    LCDMessage(LINE1_START_ADDR, astrChatLines[u8IncomingStart]);
+    if (u8IncomingStart == 0)
+      u8IncomingStart = CHAT_NUM_LINES;
+    u8IncomingStart--;
+    LCDMessage(LINE2_START_ADDR, astrChatLines[u8IncomingStart]);
+  }
 }
 
 static void ANT_SlaveIdle(void)
@@ -493,6 +527,14 @@ static void ANT_SlaveWaitChannelOpen(void)
 }
 static void ANT_SlaveChannelOpen(void)
 {
+  static u8 u8WhiteOn = 0;
+  if (u8WhiteOn > 0)
+  {
+    u8WhiteOn--;
+    if (u8WhiteOn == 0)
+      LedOff(WHITE);
+  }
+  
   if (WasButtonPressed(BUTTON0))
   {
     ButtonAcknowledge(BUTTON0);
@@ -534,17 +576,27 @@ static void ANT_SlaveChannelOpen(void)
     }
     else if (G_eAntApiCurrentMessageClass == ANT_TICK)
     {
+      if (bRAck)
+      {
+        LedOn(WHITE);
+        u8WhiteOn = 250;
+        u8 au8DataPacket[] = { 0x80, 0, 0, 0, 0, 0, 0, 0 };
+        au8DataPacket[0] |= u8REOBit;
+        bRAck = FALSE;
+        AntQueueBroadcastMessage(au8DataPacket);
+      }
       if (u8LastState != G_au8AntApiCurrentData[ANT_TICK_MSG_EVENT_CODE_INDEX])
       {
         u8LastState = G_au8AntApiCurrentData[ANT_TICK_MSG_EVENT_CODE_INDEX];
         //au8TickMessage[6] = HexToASCIICharUpper(u8LastState);
-        //DebugPrintf(au8TickMessage);
+        //DebugPrintf(au8TickMessage);        
         
         switch (u8LastState) {
         case RESPONSE_NO_ERROR:
           LedOff(GREEN);
           LedOff(RED);
           LedOn(BLUE);
+
           break;
         case EVENT_RX_FAIL:
           LedOff(GREEN);
@@ -620,11 +672,14 @@ void AntParse(void)
   
   u8 Code = G_au8AntApiCurrentData[0];
   
-  if ((Code & 0xEF) == 0xEF) // ACK Code
+  if ((Code & 0xEF) == 0x80) // ACK Code
     return;
   if (ReceiveState == IDLE) {
     if ((Code & 0xA0) == 0xA0) // Message Code or Last Packet code
+    {
       ReceiveState = RECEIVING;
+      u8REOBit = Code & MSG_EO_BIT;
+    }
   }
   if (ReceiveState == RECEIVING) {
     u8 u8PNumDiff = (G_au8AntApiCurrentData[0] & 0xF) - u8PacketNumber;
@@ -642,6 +697,7 @@ void AntParse(void)
       bMsgAvailable = TRUE;
       u8PacketNumber = 0;
       u8CharIndex = 0;
+      bRAck = TRUE;
     }
     else
       u8PacketNumber++;
@@ -713,7 +769,7 @@ static void ANT_Master(void)
         u8 i;
         for(i = 1; ; u8CharIndex++, i++)
         {
-          if (pTMsgChat[u8CharIndex] == '\0')
+          if (pTMsgAnt[u8CharIndex] == '\0')
           {
             u8PacketNumber = 0;
             u8CharIndex = 0;
@@ -729,7 +785,7 @@ static void ANT_Master(void)
             au8DataPacket[0] |= MSG_CODE;
             break;
           }
-          au8DataPacket[i] = pTMsgChat[u8CharIndex];
+          au8DataPacket[i] = pTMsgAnt[u8CharIndex];
         }
       }
       AntQueueBroadcastMessage(au8DataPacket);

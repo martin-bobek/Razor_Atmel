@@ -550,11 +550,12 @@ void TWISM_Idle(void)
       TWI0FillTxBuffer();    
       
       /* Update the message's status */
-      UpdateMessageStatus(TWI0->pTransmitBuffer->u32Token, SENDING);
+      
   
       /* Proceed to next state to let the current message send */
       TWI0->u32Flags |= (_TWI_TRANSMITTING | _TWI_TRANS_NOT_COMP);
       TWI_StateMachine = TWISM_Transmitting;
+      UpdateMessageStatus(TWI0->pTransmitBuffer->u32Token, SENDING);
     }
     else if(TWI_MessageBuffer[TWI_MessageBufferCurIndex].Direction == READ)
     {
