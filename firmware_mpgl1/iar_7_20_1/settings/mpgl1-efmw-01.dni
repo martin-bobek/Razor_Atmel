@@ -9,7 +9,7 @@ TriggerName=main
 LimitSize=0
 ByteLimit=50
 [DebugChecksum]
-Checksum=-592695034
+Checksum=1334026227
 [JLinkDriver]
 CStepIntDis=_ 0
 WatchCond=_ 0
@@ -62,12 +62,17 @@ MultiCoreRunAll=1
 Fmt0={W}1:temp	4	0
 Fmt1={W}1:temp2	4	0
 Fmt2={W}1:u8TCharNum	3	0
-Fmt3={W}3:u32InterruptSources	1	0
-Fmt4={W}3:u8CurrentLine	3	0
-Fmt5={W}3:u8Index	3	0
-Fmt6={W}3:u8MsgStart	3	0
-Fmt7={W}3:u8RCharNum	3	0
-Fmt8={W}3:u8RLineNum	3	0
+Fmt3={W}3:au8FirstNonPunct[0]	3	0
+Fmt4={W}3:au8FirstNonPunct[16]	3	0
+Fmt5={W}3:au8FirstNonPunct[17]	3	0
+Fmt6={W}3:au8FirstNonPunct[18]	3	0
+Fmt7={W}3:au8FirstNonPunct[19]	3	0
+Fmt8={W}3:u32InterruptSources	1	0
+Fmt9={W}3:u8CurrentLine	3	0
+Fmt10={W}3:u8Index	3	0
+Fmt11={W}3:u8MsgStart	3	0
+Fmt12={W}3:u8RCharNum	3	0
+Fmt13={W}3:u8RLineNum	3	0
 [Log file]
 LoggingEnabled=_ 0
 LogFile=_ ""

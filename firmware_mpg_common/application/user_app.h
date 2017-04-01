@@ -47,12 +47,16 @@ Constants / Definitions
 
 #define PACKET_LENGTH                       8
 #define TEXT_MESSAGE_LENGTH                 112
+#define ACK_TIMEOUT                         950
 #define CODE_MSK                            (u8)0xe0
 #define MSG_CODE                            (u8)0xe0
 #define END_CODE                            (u8)0xa0
 #define ACK_CODE                            (u8)0x80
+#define RQT_CODE                            (u8)0xc0
+#define RSD_CODE                            (u8)0x60
 #define PACKET_NUM_MSK                      (u8)0x0f
 #define MSG_EO_BIT                          (u8)0x10
+#define CODE_BYTE                           0
 
 
 /**********************************************************************************************************************
@@ -93,7 +97,8 @@ static void ANT_SlaveWaitChannelOpen(void);
 static void ANT_SlaveChannelOpen(void);
 static void ANT_SlaveWaitChannelClose(void);
 
-static void AntParse(void);
+static void AntDecode(void);
+static void AntGeneratePacket(u8 *pDataPacket);
 
 static void ANT_Error(void);         
 static void ANT_FailedInit(void);        
