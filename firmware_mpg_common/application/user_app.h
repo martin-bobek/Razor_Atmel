@@ -23,7 +23,16 @@ Header file for user_app1.c
 /**********************************************************************************************************************
 Type Definitions
 **********************************************************************************************************************/
-
+typedef enum { RUNNER, FROGGER, MEMORY, CHAT } Game_Type;
+typedef enum { CACTUS, GROUND } RunnerSequence_Type;
+typedef enum { WATER, LOGS } FroggerSequence_Type;
+typedef enum { LEFT, RIGHT } FroggerDirection_Type;
+typedef struct { 
+  u8 *line_ptr;
+  FroggerDirection_Type direction;
+  u8 sequence_length;
+  FroggerSequence_Type sequence_type; } FroggerLine_Type;
+typedef enum { PAUSE, DISPLAY } MemoryOutput_Type;
 
 /**********************************************************************************************************************
 Constants / Definitions
@@ -82,17 +91,40 @@ static void Chat_Initialize(void);
 static void ServiceIncoming(void);
 static bool IsPunctuation(u8 u8Char);
 
+static void Sound_Service(void);
+
+static void new_line(FroggerLine_Type *line);
+static void shift_line(FroggerLine_Type *line);
+
+static void cactus_update(void);
+
+static void timed_sound(u16 note, u16 duration_ms);
+static void led_score(void);
+static void to_decimal(u8 *str, u32 num);
+static u8 randInt(void);
+
 /***********************************************************************************************************************
 State Machine Declarations
 ***********************************************************************************************************************/
 static void Game_MainMenu(void);
 static void Game_Chat(void);
 static void Game_PrintIncoming(void);
+static void Game_HighScore(void);
+static void Game_ConfirmExit(void);
+static void Game_GameOver(void);
+static void Game_ScoreBoard(void);
 
+static void Memory_StartScreen(void);
+static void Memory_Input(void);
+static void Memory_Output(void);
+
+static void Frogger_Running(void);
+static void Frogger_StartScreen(void);
+
+static void Runner_Running(void);
+static void Runner_StartScreen(void);
 
 static void ANT_Master(void);
-
-static void ANT_SlaveIdle(void);
 static void ANT_SlaveWaitChannelOpen(void);
 static void ANT_SlaveChannelOpen(void);
 static void ANT_SlaveWaitChannelClose(void);
@@ -102,7 +134,6 @@ static void AntGeneratePacket(u8 *pDataPacket);
 
 static void ANT_Error(void);         
 static void ANT_FailedInit(void);        
-
 
 #endif /* __USER_APP1_H */
 
