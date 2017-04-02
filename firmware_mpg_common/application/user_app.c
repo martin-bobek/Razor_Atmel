@@ -90,15 +90,6 @@ static u16 u16AckTimeout;
 static u8 strRMessage[TEXT_MESSAGE_LENGTH + 1];
 static bool bMsgAvailable = FALSE;
 
-/*
-static bool SendRequest = FALSE;
-static u8 TextMessage[21] = "";
-
-static u32 UserApp1_u32DataMsgCount = 0;
-static u32 UserApp1_u32TickMsgCount = 0;
-*/
-static u8 u8LastState = 0xFF;
-
 /**********************************************************************************************************************
 Function Definitions
 **********************************************************************************************************************/
@@ -126,8 +117,6 @@ Promises:
 */
 void UserAppInitialize(void)
 {
-  LedOn(RED);
-  
   G_stAntSetupData.AntChannel           = ANT_CHANNEL_USERAPP;
   G_stAntSetupData.AntSerialLo          = ANT_SERIAL_LO_USERAPP;
   G_stAntSetupData.AntSerialHi          = ANT_SERIAL_HI_USERAPP;
@@ -143,9 +132,9 @@ void UserAppInitialize(void)
   {
     if(AntChannelConfig(ANT_SLAVE))
     {
-      LedOff(RED);
-      LedOn(YELLOW);
-      ANT_StateMachine = ANT_SlaveIdle;
+      AntOpenChannel();
+      UserApp_u32Timeout = G_u32SystemTime1ms;
+      ANT_StateMachine = ANT_SlaveWaitChannelOpen;
     }
     else
     {
@@ -158,8 +147,6 @@ void UserAppInitialize(void)
     if(AntChannelConfig(ANT_MASTER))
     {
       AntOpenChannel();
-      LedOff(RED);
-      LedOn(YELLOW);
       ANT_StateMachine = ANT_Master;
     }
     else
@@ -208,7 +195,7 @@ static bool IsPunctuation(u8 u8Char)
 static void ChatInitialize(void) 
 {
     LCDCommand(LCD_CLEAR_CMD);
-    LCDMessage(LINE1_START_ADDR, "        CHAT");
+    
     while (KeyboardData());
 }
 /* need to properly handle au8FirstNonPunct, etc... */
@@ -251,13 +238,6 @@ static void ServiceIncoming(void)
       if (u8RLineNum == 0)
         u8RLineNum = CHAT_NUM_LINES;
       u8RLineNum--;
-      /*if (bYouRestore)
-      {
-        if (u8CurrentLine == 0)
-          u8CurrentLine = CHAT_NUM_LINES;
-        u8CurrentLine--;
-        au8FirstNonPunct[u8RLineNum] = au8FirstNonPunct[u8CurrentLine];
-      } */
       u8Index = 0;
       u8RCharNum++;
       break;
@@ -273,7 +253,6 @@ static void ServiceIncoming(void)
           u8RLineNum = CHAT_NUM_LINES;
         u8RLineNum--;
         u8MsgStart = u8RLineNum;
-        //au8FirstNonPunct[u8RLineNum] = au8FirstNonPunct[u8CurrentLine];
         for (u8Index = 0; u8Index < 5; u8Index++)
         {
           astrChatLines[u8RLineNum][u8Index] = strYou[u8Index];
@@ -328,8 +307,11 @@ static void Game_MainMenu(void)
   
   if (WasButtonPressed(BUTTON3))        /* Go to StartScreen state of the selected games */
   {
-    ChatInitialize();
-    Game_StateMachine = Game_Chat;
+    ButtonAcknowledge(BUTTON3);
+    if (bMsgAvailable)
+      Game_StateMachine = Game_PrintIncoming;
+    else
+      Game_StateMachine = Game_Chat;
     bFirstEntry = TRUE;
   }
 }
@@ -341,6 +323,27 @@ static void Game_Chat(void)
   static u8 u8Col = 0;
   static u8 cStr[2] = "";
   static bool bMsgBegin = TRUE;
+  static bool bFirstEntry = TRUE;
+  
+  if (bFirstEntry)
+  {
+    LCDCommand(LCD_CLEAR_CMD);
+    LCDMessage(LINE1_START_ADDR, astrChatLines[(u8CurrentLine + 1) % 20]);
+    LCDMessage(LINE2_START_ADDR, astrChatLines[u8CurrentLine]);
+    while(KeyboardData());
+    bFirstEntry = FALSE;
+  }
+  
+  if (WasButtonPressed(BUTTON3))
+  {
+    ButtonAcknowledge(BUTTON3);
+    astrChatLines[u8CurrentLine][u8Col] = '\0';
+    pTMsgChat[u8TCharNum] = '\0';
+    u8ScrollBack = 0;
+    bFirstEntry = TRUE;
+    Game_StateMachine = Game_MainMenu;
+    return;
+  }
   
   if (bMsgAvailable)
   {
@@ -520,6 +523,7 @@ static void Game_PrintIncoming(void)
       LedOn(LCD_BLUE);
       LedOn(LCD_RED);
       bFirstEntry = TRUE; 
+      while(KeyboardData());
       return;
     }
     u32Counter = 250;
@@ -532,31 +536,16 @@ static void Game_PrintIncoming(void)
   }
 }
 
-static void ANT_SlaveIdle(void)
-{
-  if (WasButtonPressed(BUTTON0))
-  {
-    ButtonAcknowledge(BUTTON0);
-    AntOpenChannel();
-    LedOff(YELLOW);
-    LedBlink(GREEN, LED_2HZ);
-    UserApp_u32Timeout = G_u32SystemTime1ms;
-    ANT_StateMachine = ANT_SlaveWaitChannelOpen;
-  }
-}   
 static void ANT_SlaveWaitChannelOpen(void)
 {
   if (AntRadioStatus() == ANT_OPEN)
   {
-    LedOn(GREEN);
     ANT_StateMachine = ANT_SlaveChannelOpen;
   }
   if (IsTimeUp(&UserApp_u32Timeout, TIMEOUT_VALUE)) 
   {
     AntCloseChannel();
-    LedOff(GREEN);
-    LedOn(YELLOW);
-    ANT_StateMachine = ANT_SlaveIdle;
+    ANT_StateMachine = ANT_SlaveWaitChannelClose;
   }
 }
 static void ANT_SlaveChannelOpen(void)
@@ -566,27 +555,8 @@ static void ANT_SlaveChannelOpen(void)
     u16AckTimeout--;
   }
   
-  if (WasButtonPressed(BUTTON0))
-  {
-    ButtonAcknowledge(BUTTON0);
-    
-    AntCloseChannel();
-    u8LastState = 0xFF;
-    LedOff(RED);
-    LedOff(YELLOW);
-    LedOff(BLUE);
-    LedBlink(GREEN, LED_2HZ);
-    
-    UserApp_u32Timeout = G_u32SystemTime1ms;
-    ANT_StateMachine = ANT_SlaveWaitChannelClose;
-  }  
   if (AntRadioStatus() != ANT_OPEN)
   {
-    LedBlink(GREEN, LED_2HZ);
-    LedOff(RED);
-    LedOff(BLUE);
-    u8LastState = 0xFF;
-    
     UserApp_u32Timeout = G_u32SystemTime1ms;
     ANT_StateMachine = ANT_SlaveWaitChannelClose;
   }
@@ -607,34 +577,6 @@ static void ANT_SlaveChannelOpen(void)
           AntQueueBroadcastMessage(au8DataPacket);
         }
       }
-      if (u8LastState != G_au8AntApiCurrentData[ANT_TICK_MSG_EVENT_CODE_INDEX])
-      {
-        u8LastState = G_au8AntApiCurrentData[ANT_TICK_MSG_EVENT_CODE_INDEX];
-        
-        switch (u8LastState) {
-        case RESPONSE_NO_ERROR:
-          LedOff(GREEN);
-          LedOff(RED);
-          LedOn(BLUE);
-          break;
-        case EVENT_RX_FAIL:
-          LedOff(GREEN);
-          LedOn(BLUE);
-          LedOn(RED);
-          break;
-        case EVENT_RX_FAIL_GO_TO_SEARCH:
-          LedOff(BLUE);
-          LedOff(RED);
-          LedOn(GREEN);
-          break;
-        case EVENT_RX_SEARCH_TIMEOUT:
-          DebugPrintf("Search timeout\r\n");
-          break;
-        default:
-          DebugPrintf("Unexpected Event\r\n");
-          break;
-        }
-      }
     }
   }
 }
@@ -642,18 +584,14 @@ static void ANT_SlaveWaitChannelClose(void)
 {
   if (AntRadioStatus() == ANT_CLOSED)
   {
-    LedOff(GREEN);
-    LedOn(YELLOW);
-    
-    ANT_StateMachine = ANT_SlaveIdle;
+    AntOpenChannel();
+    UserApp_u32Timeout = G_u32SystemTime1ms;
+    ANT_StateMachine = ANT_SlaveWaitChannelOpen;
   }
   
   if (IsTimeUp(&UserApp_u32Timeout, TIMEOUT_VALUE))
   {
-    LedOff(GREEN);
-    LedOff(YELLOW);
-    LedBlink(RED, LED_4HZ);
-    
+    LedBlink(RED, LED_4HZ); 
     ANT_StateMachine = ANT_Error;
   }
 }
@@ -681,43 +619,17 @@ static void ANT_Master(void)
 }
 
 static void AntGeneratePacket(u8 *pDataPacket)
-{
-  static u8 u8CyanTimer = 0;
-  static u8 u8WhiteOn = 0;
-  static u8 u8PurpleOn = 0;
-  if (u8CyanTimer > 0)
-  {
-    u8CyanTimer--;
-    if(u8CyanTimer == 0)
-      LedOff(CYAN);
-  }
-  if (u8WhiteOn > 0)
-  {
-    u8WhiteOn--;
-    if (u8WhiteOn == 0)
-      LedOff(WHITE);
-  }
-  if (u8PurpleOn > 0)
-  {
-    u8PurpleOn--;
-    if (u8PurpleOn == 0)
-      LedOff(PURPLE);
-  }
-  
+{ 
   static u8 u8PacketNumber = 0;
   static u8 u8CharIndex = 0;
   if (bRResend)
   {
-    LedOn(PURPLE);
-    u8PurpleOn = 3;
     pDataPacket[0] = RSD_CODE | u8REOBit;
     bRResend = FALSE;
     return;
   }
   if (bRAck)
   {
-    LedOn(WHITE);
-    u8WhiteOn = 3;
     pDataPacket[0] = ACK_CODE | u8REOBit;
     bRAck = FALSE;
     return;
@@ -725,8 +637,6 @@ static void AntGeneratePacket(u8 *pDataPacket)
   if (bWaitingAck && u16AckTimeout == 0)
   {
     pDataPacket[0] = RQT_CODE | u8TEOBit;
-    LedOn(CYAN);
-    u8CyanTimer = 3;
     u16AckTimeout = ACK_TIMEOUT;
     return;
   }
@@ -843,89 +753,6 @@ void AntDecode(void)
       u8PacketNumber++;
     }
   }
-  
-  
-  /*
-  static enum { IDLE, RECEIVING, ERROR } ReceiveState = IDLE;
-  static u8 u8CharIndex = 0;
-  static u8 u8PacketNumber = 0;
-  static bool bRSuccess = FALSE;
-  
-  u8 Code = G_au8AntApiCurrentData[0];
-  
-  if (bWaitingAck)
-  {
-    if (G_au8AntApiCurrentData[0] == (RSD_CODE | u8TEOBit))
-    {
-      bTResend = TRUE;
-      bWaitingAck = FALSE;
-      return;
-    }
-    if (G_au8AntApiCurrentData[0] == (ACK_CODE | u8TEOBit))
-    {
-      u8TEOBit ^= MSG_EO_BIT;
-      bWaitingAck = FALSE;
-      bSendRequest = FALSE;
-      return;
-    }
-  }
-  if (ReceiveState == ERROR)
-  {
-    if (!bRResend)
-    {
-      ReceiveState = IDLE;
-    }
-    else
-    {
-      return;
-    }
-  }
-  if ((Code & 0xEF) == RQT_CODE) // ACK Request
-  {
-    u8CharIndex = 0;
-    if (bRSuccess && (Code & MSG_EO_BIT) == u8REOBit)
-    {
-      bRAck = TRUE;
-    }
-    else
-    {
-      u8REOBit = Code & MSG_EO_BIT;
-      bRResend = TRUE;
-    }
-    return;
-  }
-  if (ReceiveState == IDLE)
-  {
-    if ((Code & 0xA0) == 0xA0) // Message Code or Last Packet code
-    {
-      ReceiveState = RECEIVING;
-      bRSuccess = FALSE;
-      u8REOBit = Code & MSG_EO_BIT;
-    }
-  }
-  if (ReceiveState == RECEIVING)
-  {
-    if ((G_au8AntApiCurrentData[0] & 0xF) != u8PacketNumber)
-    {
-      ReceiveState = ERROR;
-      bRResend = TRUE;
-      return;
-    }
-    for (u8 i = 1; i < 8; i++, u8CharIndex++)
-      strRMessage[u8CharIndex] = G_au8AntApiCurrentData[i];
-    if ((Code & 0xE0) == 0xA0) { // Last Packet Code
-      ReceiveState = IDLE;
-      bRSuccess = TRUE;
-      strRMessage[u8CharIndex] = '\0';
-      bMsgAvailable = TRUE;
-      u8PacketNumber = 0;
-      u8CharIndex = 0;
-      bRAck = TRUE;
-    }
-    else
-      u8PacketNumber++;
-  }
-  */
 }
 
 /*-------------------------------------------------------------------------------------------------------------------*/
