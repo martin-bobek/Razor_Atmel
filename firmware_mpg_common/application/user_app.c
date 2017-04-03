@@ -103,7 +103,7 @@ static u8 *pTMsgChat = strTMessageA;
 static u8 *pTMsgAnt = strTMessageB;
 
 static u8 au8FirstNonPunct[CHAT_NUM_LINES]; // 21 for space beyond end
-static u8 astrChatLines[CHAT_NUM_LINES][LCD_MAX_LINE_DISPLAY_SIZE + 1] = {"        CHAT"};
+static u8 astrChatLines[CHAT_NUM_LINES][LCD_MAX_LINE_DISPLAY_SIZE + 1] = {"        CHAT     ESC"};
 static u8 u8CurrentLine = CHAT_NUM_LINES - 1;
 static u8 u8MsgStart = CHAT_NUM_LINES - 1;
 static u8 u8IncomingStart;
@@ -120,6 +120,18 @@ static u16 u16AckTimeout;
 
 static u8 strRMessage[TEXT_MESSAGE_LENGTH + 1];
 static bool bMsgAvailable = FALSE;
+
+#define STICKMAN      "\x01"
+#define SOLID         "\x02"
+#define LOG           "\x03"
+#define UP            "\x04"
+
+CustomChar_t CustomChars[] = {
+  { 0x01, {0x0E, 0x0E, 0x04, 0x1F, 0x04, 0x04, 0x0A, 0x11} },   // Stickman
+  { 0x02, {0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F} },   // Solid Block
+  { 0x03, {0x00, 0x00, 0x00, 0x00, 0x1F, 0x1F, 0x1F, 0x00} },    // Log
+  { 0x04, {0x00, 0x04, 0x0E, 0x15, 0x04, 0x04, 0x00, 0x00} },    // Up
+};
 
 /**********************************************************************************************************************
 Function Definitions
@@ -185,7 +197,9 @@ void UserAppInitialize(void)
       LedBlink(RED, LED_4HZ);
       ANT_StateMachine = ANT_FailedInit;
     } 
-  }  
+  } 
+  
+  LCDCharSetup(CustomChars, sizeof(CustomChars)/sizeof(CustomChar_t));
 } /* end UserApp1Initialize() */
 
   
@@ -222,7 +236,8 @@ static bool IsPunctuation(u8 u8Char)
 {
   return !((u8Char >= 'a' && u8Char <= 'z') ||
            (u8Char >= 'A' && u8Char <= 'Z') ||
-           (u8Char >= '0' && u8Char <= '9'));
+           (u8Char >= '0' && u8Char <= '9') ||
+           (u8Char == '\''));
 }
 static void ServiceIncoming(void)
 {
@@ -328,7 +343,8 @@ State Machine Function Definitions
 **********************************************************************************************************************/
 static void Game_MainMenu(void)
 {
-  static u8 strControls[] = "SCORE  \x7F    \x7E  ENTER";
+  static u8 strControls[] = "ENTER  \x7F    \x7E  SCORE";
+  static u8 strCtrlsChat[]= "ENTER";
   static u8 strRunner[]   = "       RUNNER       ";
   static u8 strFrogger[]  = "      FROGGER       ";
   static u8 strMemory[]   = "    MEMORY GAME     ";
@@ -360,13 +376,13 @@ static void Game_MainMenu(void)
     {
       LCDMessage(LINE1_START_ADDR, strChat);
     }
-    LCDMessage(LINE2_START_ADDR, strControls);
+    LCDMessage(LINE2_START_ADDR, (CurrentGame == CHAT) ? strCtrlsChat : strControls);
     bFirstEntry = FALSE;
   }
   
-  if (WasButtonPressed(BUTTON3))        /* Go to StartScreen state of the selected games */
+  if (WasButtonPressed(BUTTON0))        /* Go to StartScreen state of the selected games */
   {
-    ButtonAcknowledge(BUTTON3);
+    ButtonAcknowledge(BUTTON0);
     
     if (CurrentGame == RUNNER)
     {
@@ -395,9 +411,9 @@ static void Game_MainMenu(void)
     }
     bFirstEntry = TRUE;
   }
-  else if (WasButtonPressed(BUTTON0))        /* Go to HighScore state */
+  else if (WasButtonPressed(BUTTON3))        /* Go to HighScore state */
   {
-    ButtonAcknowledge(BUTTON0);
+    ButtonAcknowledge(BUTTON3);
     if (CurrentGame != CHAT)
     {
       Game_StateMachine = Game_HighScore;
@@ -422,6 +438,7 @@ static void Game_MainMenu(void)
     {
       CurrentGame = MEMORY;
       LCDMessage(LINE1_START_ADDR, strMemory);
+      LCDMessage(LINE2_START_ADDR + 15, &strControls[15]);
     }
   }
   else if (WasButtonPressed(BUTTON2))        /* Move RIGHT in list of games */
@@ -440,7 +457,9 @@ static void Game_MainMenu(void)
     else if (CurrentGame == MEMORY)
     {
       CurrentGame = CHAT;
+      LCDCommand(LCD_CLEAR_CMD);
       LCDMessage(LINE1_START_ADDR, strChat);
+      LCDMessage(LINE2_START_ADDR, strCtrlsChat);
     }
   }
 }
@@ -500,7 +519,18 @@ static void Game_Chat(void)
     if ((*cStr == ENT_) && (u8TCharNum > 0) && !bSendRequest)
     {
       bSendRequest = TRUE;
-      pTMsgChat[u8TCharNum] = '\0';
+      astrChatLines[u8CurrentLine][u8Col] = '\0';
+      if (pTMsgChat[u8TCharNum - 1] == '\n')
+        pTMsgChat[u8TCharNum - 1] = '\0';
+      else
+      {
+        LCDCommand(LCD_CLEAR_CMD);
+        LCDMessage(LINE1_START_ADDR, astrChatLines[u8CurrentLine]);
+        if (u8CurrentLine == 0)
+          u8CurrentLine = CHAT_NUM_LINES;
+        u8CurrentLine--;
+        pTMsgChat[u8TCharNum] = '\0';
+      }
       u8TCharNum = 0;
       pTMsgAnt = pTMsgChat;
       if (pTMsgChat == strTMessageA)
@@ -511,12 +541,6 @@ static void Game_Chat(void)
       {
         pTMsgChat = strTMessageA;
       }
-      astrChatLines[u8CurrentLine][u8Col] = '\0';
-      LCDCommand(LCD_CLEAR_CMD);
-      LCDMessage(LINE1_START_ADDR, astrChatLines[u8CurrentLine]);
-      if (u8CurrentLine == 0)
-        u8CurrentLine = CHAT_NUM_LINES;
-      u8CurrentLine--;
       u8MsgStart = u8CurrentLine;
       bMsgBegin = TRUE;
     }
@@ -886,7 +910,7 @@ void AntDecode(void)
 }
 
 
-static void Game_HighScore(void)
+static void Game_HighScore()
 {
   static u8 strLine1[] = "High Score:";
   static u8 strLine2[] = "          ";
@@ -913,7 +937,7 @@ static void Game_HighScore(void)
     bFirstEntry = TRUE;
   }
 }
-static void Game_ConfirmExit(void)
+static void Game_ConfirmExit()
 {
   static u8 strLine1[] = "      EXIT TO:      ";
   static u8 strLine2[] = "MENU START    CANCEL";
@@ -985,7 +1009,7 @@ static void Game_ConfirmExit(void)
     bFirstEntry = TRUE;
   }
 }
-static void Game_GameOver(void)
+static void Game_GameOver()
 {
   static u8 u8Counter = 0;
   static u8 u8TickNumber = 0;
@@ -1042,7 +1066,7 @@ static void Game_GameOver(void)
     Game_StateMachine = Game_ScoreBoard;
   }
 }
-static void Game_ScoreBoard(void)
+static void Game_ScoreBoard()
 {
   static u8 strLine1[18] = "Score: ";
   static u8 strLine2[17] = "High: ";
@@ -1086,7 +1110,7 @@ static void Game_ScoreBoard(void)
 }
 
 
-static void Memory_StartScreen(void)
+static void Memory_StartScreen()
 {
   static u8 strLine1[] = " REPEAT THE PATTERN ";
   static u8 strLine2[] = "START            ESC";
@@ -1121,7 +1145,7 @@ static void Memory_StartScreen(void)
     bFirstEntry = TRUE;
   }
 }
-static void Memory_Input(void)
+static void Memory_Input()
 {
   static u32 u32GOTimer = 5000;
   static u32 u32Button;
@@ -1179,23 +1203,23 @@ static void Memory_Input(void)
       {
       case BUTTON0:
         PWMAudioSetFrequency(BUZZER1, C5);
-        LCDMessage(LINE1_START_ADDR, "\x23");
-        LCDMessage(LINE2_START_ADDR, "\x23");
+        LCDMessage(LINE1_START_ADDR, SOLID);
+        LCDMessage(LINE2_START_ADDR, SOLID);
         break;
       case BUTTON1:
         PWMAudioSetFrequency(BUZZER1, D5);
-        LCDMessage(LINE1_START_ADDR + 6, "\x23");
-        LCDMessage(LINE2_START_ADDR + 6, "\x23");
+        LCDMessage(LINE1_START_ADDR + 6, SOLID);
+        LCDMessage(LINE2_START_ADDR + 6, SOLID);
         break;
       case BUTTON2:
         PWMAudioSetFrequency(BUZZER1, E5);
-        LCDMessage(LINE1_START_ADDR + 13, "\x23");
-        LCDMessage(LINE2_START_ADDR + 13, "\x23");
+        LCDMessage(LINE1_START_ADDR + 13, SOLID);
+        LCDMessage(LINE2_START_ADDR + 13, SOLID);
         break;
       case BUTTON3:
         PWMAudioSetFrequency(BUZZER1, G5S);
-        LCDMessage(LINE1_START_ADDR + 19, "\x23");
-        LCDMessage(LINE2_START_ADDR + 19, "\x23");
+        LCDMessage(LINE1_START_ADDR + 19, SOLID);
+        LCDMessage(LINE2_START_ADDR + 19, SOLID);
         break;
       }
       if (i != (au8Memory_Sequence[u32Memory_SequencePosition / 4] >> (2 * (u32Memory_SequencePosition % 4))) % 4)
@@ -1238,7 +1262,7 @@ static void Memory_Input(void)
     PWMAudioOff(BUZZER1);
   }
 }
-static void Memory_Output(void)
+static void Memory_Output()
 {
   static MemoryOutput_Type OutputState = PAUSE;
   static u32 u32Counter = 300;
@@ -1282,23 +1306,23 @@ static void Memory_Output(void)
       {
       case 0:
         timed_sound(C5, 300);
-        LCDMessage(LINE1_START_ADDR, "\x23");
-        LCDMessage(LINE2_START_ADDR, "\x23");
+        LCDMessage(LINE1_START_ADDR, SOLID);
+        LCDMessage(LINE2_START_ADDR, SOLID);
         break;
       case 1:
         timed_sound(D5, 300);
-        LCDMessage(LINE1_START_ADDR + 6, "\x23");
-        LCDMessage(LINE2_START_ADDR + 6, "\x23");
+        LCDMessage(LINE1_START_ADDR + 6, SOLID);
+        LCDMessage(LINE2_START_ADDR + 6, SOLID);
         break;
       case 2:
         timed_sound(E5, 300);
-        LCDMessage(LINE1_START_ADDR + 13, "\x23");
-        LCDMessage(LINE2_START_ADDR + 13, "\x23");
+        LCDMessage(LINE1_START_ADDR + 13, SOLID);
+        LCDMessage(LINE2_START_ADDR + 13, SOLID);
         break;
       case 3:
         timed_sound(G5S, 300);
-        LCDMessage(LINE1_START_ADDR + 19, "\x23");
-        LCDMessage(LINE2_START_ADDR + 19, "\x23");
+        LCDMessage(LINE1_START_ADDR + 19, SOLID);
+        LCDMessage(LINE2_START_ADDR + 19, SOLID);
         break;
       }
       u32Memory_SequencePosition++;
@@ -1322,10 +1346,10 @@ static void Memory_Output(void)
 }
 
 
-static void Frogger_StartScreen(void)
+static void Frogger_StartScreen()
 {
   static u8 strLine1[] = "START    CONTROLS:  ";
-  static u8 strLine2[] = "\x7F     ^      \x7E   ESC";
+  static u8 strLine2[] = "\x7F     "UP"      \x7E   ESC";
   static bool bFirstEntry = TRUE;
   
   if (bFirstEntry)
@@ -1336,7 +1360,7 @@ static void Frogger_StartScreen(void)
     LCDMessage(LINE2_START_ADDR, strLine2);
     
     for (u8 i = 0; i < 20; i++)
-      au8Frogger_strLineA[i] = '=';
+      au8Frogger_strLineA[i] = LOG[0];
     Frogger_LineA = (FroggerLine_Type){ au8Frogger_strLineA, LEFT, 1, LOGS };
     Frogger_LineB = (FroggerLine_Type){ au8Frogger_strLineB, RIGHT, 0, WATER };
     new_line(&Frogger_LineB);
@@ -1360,7 +1384,7 @@ static void Frogger_StartScreen(void)
     ButtonAcknowledge(BUTTON2);
     ButtonAcknowledge(BUTTON3);
     LCDMessage(LINE2_START_ADDR, aFrogger_Lines[0]->line_ptr);
-    LCDMessage(LINE2_START_ADDR + 10, "\xAB");
+    LCDMessage(LINE2_START_ADDR + 10, STICKMAN);
     LCDMessage(LINE1_START_ADDR, aFrogger_Lines[1]->line_ptr);
     LedOff(LCD_GREEN);
     LedOff(LCD_RED);
@@ -1374,7 +1398,7 @@ static void Frogger_StartScreen(void)
     bFirstEntry = TRUE;
   }
 }
-static void Frogger_Running(void)
+static void Frogger_Running()
 {
   bool bScoreChanged = FALSE;
   
@@ -1473,7 +1497,7 @@ static void Frogger_Running(void)
     }
     else
     {
-      LCDMessage(((u8Frogger_Forward == 0) ? LINE2_START_ADDR : LINE1_START_ADDR) + s8Frogger_Position, "\xAB");
+      LCDMessage(((u8Frogger_Forward == 0) ? LINE2_START_ADDR : LINE1_START_ADDR) + s8Frogger_Position, STICKMAN);
     }
     bFrogger_ScreenUpdate = FALSE;
   }
@@ -1506,7 +1530,7 @@ static void new_line(FroggerLine_Type *line)
     }
     if (line->sequence_type == LOGS)
     {
-      line->line_ptr[i] = '=';
+      line->line_ptr[i] = LOG[0];
     }
     else
     {
@@ -1545,7 +1569,7 @@ static void shift_line(FroggerLine_Type *line)
   }
   if (line->sequence_type == LOGS)
   {
-    line->line_ptr[new_index] = '=';
+    line->line_ptr[new_index] = LOG[0];
   }
   else
   {
@@ -1555,7 +1579,7 @@ static void shift_line(FroggerLine_Type *line)
 }
 
 
-static void Runner_StartScreen(void)
+static void Runner_StartScreen()
 {
   static u8 strLine1[] = "          CONTROLS: ";
   static u8 strLine2[] = "START      JUMP  ESC";
@@ -1600,7 +1624,7 @@ static void Runner_StartScreen(void)
     bFirstEntry = TRUE;
   }
 }
-static void Runner_Running(void)
+static void Runner_Running()
 { 
   static u32 u32Counter = 250;
   
@@ -1647,7 +1671,7 @@ static void Runner_Running(void)
       LCDMessage(LINE1_START_ADDR + 1, " "); /* Clears stick man if in upper row */
       if (au8Runner_Cactuses[1] == ' ')
       {
-        LCDMessage(LINE2_START_ADDR + 1, "\xAB");
+        LCDMessage(LINE2_START_ADDR + 1, STICKMAN);
       }
       else
       {
@@ -1659,14 +1683,14 @@ static void Runner_Running(void)
     }
     else
     {
-      LCDMessage(LINE1_START_ADDR + 1, "\xAB");
+      LCDMessage(LINE1_START_ADDR + 1, STICKMAN);
     }
     
     bRunner_ScreenUpdate = FALSE;
   }
 }
 
-static void cactus_update(void)
+static void cactus_update()
 { 
   for (u8 i = 0; i < 19; i++)               /* Shift Cactuses 1 left)  */
   {
@@ -1705,7 +1729,7 @@ static void timed_sound(u16 note, u16 duration_ms)
   PWMAudioSetFrequency(BUZZER1, note);
   PWMAudioOn(BUZZER1);
 }
-static void led_score(void)
+static void led_score()
 {
   for (u8 i = 0; i < 8; i++)
   {
@@ -1742,7 +1766,7 @@ static void to_decimal(u8 *str, u32 num)
   }
   *str = '\0';
 }
-static u8 randInt(void)
+static u8 randInt()
 {
   for (u8 i = 0; i < 8; i++)
   {
@@ -1750,7 +1774,6 @@ static u8 randInt(void)
   }
   return (u8)u16LFSR;
 }
-
 
 /*-------------------------------------------------------------------------------------------------------------------*/
 /* Handle an error */
