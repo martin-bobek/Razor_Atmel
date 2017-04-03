@@ -344,7 +344,7 @@ State Machine Function Definitions
 static void Game_MainMenu(void)
 {
   static u8 strControls[] = "ENTER  \x7F    \x7E  SCORE";
-  static u8 strCtrlsChat[]= "ENTER";
+  static u8 strCtrlsChat[]= "ENTER  \x7F    \x7E       ";
   static u8 strRunner[]   = "       RUNNER       ";
   static u8 strFrogger[]  = "      FROGGER       ";
   static u8 strMemory[]   = "    MEMORY GAME     ";
@@ -359,6 +359,8 @@ static void Game_MainMenu(void)
     ButtonAcknowledge(BUTTON1);
     ButtonAcknowledge(BUTTON2);
     ButtonAcknowledge(BUTTON3);
+    
+    LCDCommand(LCD_CLEAR_CMD);
     
     if (CurrentGame == RUNNER)
     {
@@ -438,7 +440,7 @@ static void Game_MainMenu(void)
     {
       CurrentGame = MEMORY;
       LCDMessage(LINE1_START_ADDR, strMemory);
-      LCDMessage(LINE2_START_ADDR + 15, &strControls[15]);
+      LCDMessage(LINE2_START_ADDR, strControls);
     }
   }
   else if (WasButtonPressed(BUTTON2))        /* Move RIGHT in list of games */
